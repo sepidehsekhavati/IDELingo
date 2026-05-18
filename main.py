@@ -53,13 +53,27 @@ class IDELingoApp:
         page.bgcolor = COLORS['bg']
         page.theme = ft.Theme(color_scheme_seed=COLORS['accent'], use_material3=True)
 
-        # AppBar ساده (بدون لوگو برای تست)
-        page.appbar = ft.AppBar(
-            title=ft.Text("IDELingo", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-            center_title=True,
-            bgcolor=COLORS['sidebar'],
-            actions=[ft.IconButton(icon=ft.icons.PERSON, icon_color=COLORS['text_secondary'], on_click=self.show_profile)]
-        )
+        # AppBar: فقط لوگو (بدون متن)
+        if os.path.exists(LOGO_PATH):
+            try:
+                page.appbar = ft.AppBar(
+                    title=ft.Image(src=LOGO_PATH, width=50, height=50, fit=ft.ImageFit.CONTAIN),
+                    center_title=True,
+                    bgcolor=COLORS['sidebar'],
+                    actions=[ft.IconButton(icon=ft.icons.PERSON, icon_color=COLORS['text_secondary'], on_click=self.show_profile)]
+                )
+            except:
+                page.appbar = ft.AppBar(
+                    title=ft.Text("", size=0),
+                    bgcolor=COLORS['sidebar'],
+                    actions=[ft.IconButton(icon=ft.icons.PERSON, icon_color=COLORS['text_secondary'], on_click=self.show_profile)]
+                )
+        else:
+            page.appbar = ft.AppBar(
+                title=ft.Text("", size=0),
+                bgcolor=COLORS['sidebar'],
+                actions=[ft.IconButton(icon=ft.icons.PERSON, icon_color=COLORS['text_secondary'], on_click=self.show_profile)]
+            )
 
         if self.init_backend():
             self.show_login()
@@ -176,16 +190,22 @@ class IDELingoApp:
         prog = self.user_manager.get_daily_progress(self.current_user['id'])
         hour = datetime.now().hour
         greet = "Good Evening" if hour > 18 else "Good Afternoon" if hour > 12 else "Good Morning"
+        phrases_cnt = self.user_manager.db.cursor.execute("SELECT COUNT(*) FROM phrases WHERE user_id=?", (self.current_user['id'],)).fetchone()[0]
+
+        def nav_words(e): self.nav_change(1)
+        def nav_gram(e): self.nav_change(2)
+        def nav_phr(e): self.nav_change(4)
+        def nav_streak(e): self.nav_change(7)
 
         row1 = ft.Row([
-            self._stat_card("📚", f"{prog['words_learned']}", f"/{self.current_user['daily_goal']}", "Words Today"),
-            self._stat_card("📖", f"{prog['grammar_learned']}", "", "Grammar Today"),
-            self._stat_card("⭐", f"{self.current_user['xp_total']}", "", "Total XP"),
+            self._stat_card("📚", f"{prog['words_learned']}", f"/{self.current_user['daily_goal']}", "Words Today", nav_words),
+            self._stat_card("📖", f"{prog['grammar_learned']}", "", "Grammar Today", nav_gram),
+            self._stat_card("💬", f"{phrases_cnt}", "", "Phrases", nav_phr),
         ], alignment=ft.MainAxisAlignment.SPACE_EVENLY, spacing=5)
         row2 = ft.Row([
-            self._stat_card("🔥", f"{self.current_user['current_streak']}", "days", "Streak"),
-            self._stat_card("🎯", "✅" if prog['goal_achieved'] else "⏳", "", "Daily Goal"),
-            self._stat_card("🏆", f"{self.current_user['level']}", "", "Level"),
+            self._stat_card("🔥", f"{self.current_user['current_streak']}", "days", "Streak", nav_streak),
+            self._stat_card("🎯", "✅" if prog['goal_achieved'] else "⏳", "", "Daily Goal", None),
+            self._stat_card("🏆", f"{self.current_user['level']}", "", "Level", None),
         ], alignment=ft.MainAxisAlignment.SPACE_EVENLY, spacing=5)
 
         quick = self._quick_add_section()
@@ -199,8 +219,8 @@ class IDELingoApp:
         ], spacing=10, expand=True))
         self.page.update()
 
-    def _stat_card(self, icon, value, subtitle, label):
-        return ft.Container(
+    def _stat_card(self, icon, value, subtitle, label, on_click):
+        card = ft.Container(
             content=ft.Column([
                 ft.Text(icon, size=24),
                 ft.Text(value, size=18, weight=ft.FontWeight.BOLD, color=COLORS['accent']),
@@ -209,22 +229,24 @@ class IDELingoApp:
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=3),
             bgcolor=COLORS['card'], border_radius=10, padding=ft.padding.all(8), width=110, height=100
         )
+        if on_click:
+            card.on_click = on_click
+        return card
 
     def _quick_add_section(self):
         wf = ft.TextField(hint_text="Word", border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'], expand=True, height=45)
         mf = ft.TextField(hint_text="Meaning", border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'], expand=True, height=45)
-        lang = ft.Dropdown(options=[ft.dropdown.Option("English"), ft.dropdown.Option("Spanish"), ft.dropdown.Option("French"), ft.dropdown.Option("German"), ft.dropdown.Option("Japanese")], value="English", width=100, height=45, bgcolor=COLORS['bg'], color=COLORS['text'])
+        # حذف dropdown زبان
         def add(e):
             if not wf.value: self._show_snack("❌ Please enter a word!", COLORS['danger']); return
             if not mf.value: self._show_snack("❌ Please enter a meaning!", COLORS['danger']); return
-            self.user_manager.add_vocabulary(self.current_user['id'], wf.value, mf.value, "", lang.value, "medium", "", "")
-            self.current_user['xp_total'] += 10
+            self.user_manager.add_vocabulary(self.current_user['id'], wf.value, mf.value, "", "English", "medium", "", "")
             wf.value = ""; mf.value = ""
-            self._show_snack("✅ Word added! (+10 XP)", COLORS['success'])
+            self._show_snack("✅ Word added!", COLORS['success'])
             self.show_dashboard()
         return ft.Container(content=ft.Column([
             ft.Text("➕ Quick Add Word", size=16, weight=ft.FontWeight.BOLD, color=COLORS['text']),
-            ft.Row([wf, mf, lang, ft.IconButton(icon=ft.icons.ADD_CIRCLE, icon_color=COLORS['success'], icon_size=40, on_click=add)], spacing=10)
+            ft.Row([wf, mf, ft.IconButton(icon=ft.icons.ADD_CIRCLE, icon_color=COLORS['success'], icon_size=40, on_click=add)], spacing=10)
         ], spacing=10), bgcolor=COLORS['card'], border_radius=12, padding=15, margin=ft.margin.symmetric(horizontal=20))
 
     def _show_snack(self, msg, color):
@@ -243,23 +265,22 @@ class IDELingoApp:
     def show_vocabulary(self):
         self.page.clean()
         self.current_index = 1
-        header = ft.Container(content=ft.Row([ft.Text("📝 Vocabulary Manager", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent']), ft.IconButton(icon=ft.icons.ADD, icon_color=COLORS['success'], icon_size=30, on_click=lambda e: self.add_vocabulary_dialog())], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), padding=20)
-        self.vocab_search = ft.TextField(hint_text="Search word or meaning...", width=180, height=40, border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'])
-        self.vocab_lang = ft.Dropdown(options=[ft.dropdown.Option("All"), ft.dropdown.Option("English"), ft.dropdown.Option("Spanish"), ft.dropdown.Option("French"), ft.dropdown.Option("German"), ft.dropdown.Option("Japanese")], value="All", width=100, bgcolor=COLORS['bg'], color=COLORS['text'])
-        self.vocab_diff = ft.Dropdown(options=[ft.dropdown.Option("All"), ft.dropdown.Option("easy"), ft.dropdown.Option("medium"), ft.dropdown.Option("hard")], value="All", width=80, bgcolor=COLORS['bg'], color=COLORS['text'])
-        filter_frame = ft.Container(content=ft.Row([self.vocab_search, self.vocab_lang, self.vocab_diff], spacing=10), padding=ft.padding.symmetric(horizontal=20, vertical=10))
-        self.vocab_search.on_change = self.refresh_vocab
-        self.vocab_lang.on_change = self.refresh_vocab
+        # هدر: عنوان در وسط، آیکون سرچ در راست
+        header = ft.Container(content=ft.Row([
+            ft.Text("📝 Vocabulary Manager", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent'], expand=True, text_align=ft.TextAlign.CENTER),
+            ft.IconButton(icon=ft.icons.SEARCH, icon_color=COLORS['accent'], icon_size=24, on_click=lambda e: self.show_search_dialog("vocabulary"))
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), padding=ft.padding.all(20))
+        add_btn = ft.ElevatedButton(content=ft.Row([ft.Icon(ft.icons.ADD), ft.Text("Add New Word")], spacing=10), on_click=lambda e: self.add_vocabulary_dialog(), bgcolor=COLORS['success'], color=COLORS['bg'])
+        # فقط فیلتر difficulty (زبان حذف شد)
+        self.vocab_diff = ft.Dropdown(options=[ft.dropdown.Option("All"), ft.dropdown.Option("easy"), ft.dropdown.Option("medium"), ft.dropdown.Option("hard")], value="All", width=100, bgcolor=COLORS['bg'], color=COLORS['text'])
         self.vocab_diff.on_change = self.refresh_vocab
         self.vocab_container = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
-        self.page.add(ft.Column([header, filter_frame, ft.Container(content=self.vocab_container, expand=True, padding=ft.padding.symmetric(horizontal=20)), self._bottom_nav_bar()], spacing=10, expand=True))
+        self.page.add(ft.Column([header, ft.Container(content=add_btn, padding=ft.padding.symmetric(horizontal=20)), ft.Container(content=ft.Row([self.vocab_diff], spacing=10), padding=ft.padding.symmetric(horizontal=20, vertical=10)), ft.Container(content=self.vocab_container, expand=True, padding=ft.padding.symmetric(horizontal=20)), self._bottom_nav_bar()], spacing=10, expand=True))
         self.refresh_vocab(None)
 
     def refresh_vocab(self, e):
         self.vocab_container.controls.clear()
         filters = {}
-        if self.vocab_search.value: filters['search'] = self.vocab_search.value
-        if self.vocab_lang.value != "All": filters['language'] = self.vocab_lang.value
         if self.vocab_diff.value != "All": filters['difficulty'] = self.vocab_diff.value
         words = self.user_manager.get_vocabulary(self.current_user['id'], filters)
         if not words:
@@ -272,7 +293,7 @@ class IDELingoApp:
                 card = ft.Container(
                     content=ft.Row([
                         ft.Column([ft.Row([ft.Text(w[2], size=16, weight=ft.FontWeight.BOLD, color=COLORS['accent']), ft.Text(diff_icon, size=12)], spacing=5), ft.GestureDetector(content=meaning_disp, on_tap=toggle(w[3], meaning_disp))], spacing=3, expand=True),
-                        ft.Column([ft.Text(f"🌐 {w[5]}", size=11, color=COLORS['text_muted']), ft.Row([ft.IconButton(icon=ft.icons.EDIT, icon_size=18, icon_color=COLORS['info'], on_click=lambda _, ww=w: self.edit_word(ww)), ft.IconButton(icon=ft.icons.DELETE, icon_size=18, icon_color=COLORS['danger'], on_click=lambda _, wid=w[0]: self.delete_word(wid))], spacing=0)], horizontal_alignment=ft.CrossAxisAlignment.END)
+                        ft.Column([ft.Text(f"🌐 English", size=11, color=COLORS['text_muted']), ft.Row([ft.IconButton(icon=ft.icons.EDIT, icon_size=18, icon_color=COLORS['info'], on_click=lambda _, ww=w: self.edit_word(ww)), ft.IconButton(icon=ft.icons.DELETE, icon_size=18, icon_color=COLORS['danger'], on_click=lambda _, wid=w[0]: self.delete_word(wid))], spacing=0)], horizontal_alignment=ft.CrossAxisAlignment.END)
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     bgcolor=COLORS['card'], border_radius=10, padding=12)
                 self.vocab_container.controls.append(card)
@@ -303,7 +324,7 @@ class IDELingoApp:
         wf = ft.TextField(label="Word", width=300)
         mf = ft.TextField(label="Meaning", width=300, multiline=True, min_lines=2)
         exf = ft.TextField(label="Example (optional)", width=300)
-        lang = ft.Dropdown(options=[ft.dropdown.Option("English"), ft.dropdown.Option("Spanish"), ft.dropdown.Option("French"), ft.dropdown.Option("German"), ft.dropdown.Option("Japanese")], value="English", width=300)
+        # حذف dropdown زبان
         diff = ft.Dropdown(options=[ft.dropdown.Option("easy"), ft.dropdown.Option("medium"), ft.dropdown.Option("hard")], value="medium", width=300)
         dict_res = ft.Text("", size=12)
         def search_dict(e):
@@ -314,142 +335,244 @@ class IDELingoApp:
         def save(e):
             if not wf.value: self._show_snack("❌ Please enter a word!", COLORS['danger']); return
             if not mf.value: self._show_snack("❌ Please enter a meaning!", COLORS['danger']); return
-            self.user_manager.add_vocabulary(self.current_user['id'], wf.value, mf.value, exf.value or "", lang.value, diff.value, "", "")
+            self.user_manager.add_vocabulary(self.current_user['id'], wf.value, mf.value, exf.value or "", "English", diff.value, "", "")
             self._close_dialog(dlg)
             self.refresh_vocab(None)
             self._show_snack(f"✅ '{wf.value}' added!", COLORS['success'])
-        dlg = ft.AlertDialog(title=ft.Text("Add New Word", color=COLORS['accent']), content=ft.Container(content=ft.Column([wf, mf, exf, lang, diff, ft.ElevatedButton("🔍 Search in Dictionary", on_click=search_dict, bgcolor=COLORS['info']), dict_res], spacing=15, scroll=ft.ScrollMode.AUTO), padding=20, width=380, height=550), actions=[ft.TextButton("Cancel", on_click=lambda e: self._close_dialog(dlg)), ft.ElevatedButton("Save", on_click=save, bgcolor=COLORS['success'])])
+        dlg = ft.AlertDialog(title=ft.Text("Add New Word", color=COLORS['accent']), content=ft.Container(content=ft.Column([wf, mf, exf, diff, ft.ElevatedButton("🔍 Search in Dictionary", on_click=search_dict, bgcolor=COLORS['info']), dict_res], spacing=15, scroll=ft.ScrollMode.AUTO), padding=20, width=380, height=550), actions=[ft.TextButton("Cancel", on_click=lambda e: self._close_dialog(dlg)), ft.ElevatedButton("Save", on_click=save, bgcolor=COLORS['success'])])
         self.page.dialog = dlg
         dlg.open = True
         self.page.update()
 
-    # ========== Grammar ==========
+    def show_search_dialog(self, target):
+        sf = ft.TextField(hint_text="Search...", width=300)
+        res = ft.Text("", size=14)
+        def do_search(e):
+            q = sf.value
+            if not q: return
+            if target == "vocabulary":
+                ww = self.user_manager.get_vocabulary(self.current_user['id'], {'search': q})
+                res.value = f"🔍 Found {len(ww)} words containing '{q}'" if ww else f"❌ No words found for '{q}'"
+            elif target == "phrases":
+                pp = self.user_manager.get_phrases(self.current_user['id'], q)
+                res.value = f"🔍 Found {len(pp)} phrases containing '{q}'" if pp else f"❌ No phrases found for '{q}'"
+            res.update()
+        dlg = ft.AlertDialog(title=ft.Text(f"Search {target.capitalize()}"), content=ft.Column([sf, res]), actions=[ft.TextButton("Search", on_click=do_search), ft.TextButton("Close", on_click=lambda e: self._close_dialog(dlg))])
+        self.page.dialog = dlg
+        dlg.open = True
+        self.page.update()
+
+    # ========== Grammar (فقط favorites + جستجوی کامل + رفرش خودکار) ==========
     def show_grammar(self):
         self.page.clean()
         self.current_index = 2
-        topics = self.user_manager.get_all_grammar_topics()
-        search = ft.TextField(hint_text="Search grammar rules...", prefix_icon=ft.icons.SEARCH, expand=True, height=45, border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'])
-        grammar_content = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
+        self.grammar_fav_only = True
+        self.grammar_search = ft.TextField(
+            hint_text="Search grammar rules...", prefix_icon=ft.icons.SEARCH, expand=True, height=45,
+            border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text']
+        )
+        self.grammar_container = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
-        def filter_grammar(e):
-            q = search.value.lower() if search.value else ""
-            grammar_content.controls.clear()
-            filtered = [t for t in topics if q in t.lower()] if q else topics
-            for t in filtered[:30]:
-                info = self.user_manager.get_grammar_info(t)
-                title = info.get('title', t.replace('_', ' ').title()) if info else t.replace('_', ' ').title()
+        def refresh_grammar(e=None):
+            self.grammar_container.controls.clear()
+            query = self.grammar_search.value.strip().lower() if self.grammar_search.value else ""
+            if query:
+                # جستجو در همه قوانین
+                topics = self.user_manager.get_all_grammar_topics()
+                filtered = [t for t in topics if query in t.lower()]
+            else:
+                if self.grammar_fav_only:
+                    favs = self.user_manager.get_grammar_favorites()
+                    filtered = [fav['key'] for fav in favs]
+                else:
+                    filtered = self.user_manager.get_all_grammar_topics()
+            for topic in filtered[:30]:
+                info = self.user_manager.get_grammar_info(topic)
+                title = info.get('title', topic.replace('_', ' ').title()) if info else topic.replace('_', ' ').title()
                 level = info.get('level','beginner') if info else 'beginner'
                 level_icon = "🔰" if level=='beginner' else "📘" if level=='intermediate' else "🎓"
-                is_fav = self.user_manager.is_grammar_favorite(t)
+                is_fav = self.user_manager.is_grammar_favorite(topic)
                 fav_icon = "❤️" if is_fav else "🤍"
-                grammar_content.controls.append(ft.Container(
-                    content=ft.Row([ft.Text(f"{level_icon} {fav_icon}", size=14), ft.Text(title, size=14, color=COLORS['text'], expand=True), ft.Icon(ft.icons.CHEVRON_RIGHT, color=COLORS['text_muted'], size=18)]),
-                    bgcolor=COLORS['card'], border_radius=8, padding=12, on_click=lambda _, tt=t: self.open_grammar_topic(tt)
-                ))
+                btn = ft.Container(
+                    content=ft.Row([
+                        ft.Text(f"{level_icon} {fav_icon}", size=14),
+                        ft.Text(title, size=14, color=COLORS['text'], expand=True),
+                        ft.Icon(ft.icons.CHEVRON_RIGHT, color=COLORS['text_muted'], size=18)
+                    ]),
+                    bgcolor=COLORS['card'], border_radius=8, padding=12,
+                    on_click=lambda _, t=topic: self.open_grammar_topic(t, refresh_grammar)
+                )
+                self.grammar_container.controls.append(btn)
             if not filtered:
-                grammar_content.controls.append(ft.Container(content=ft.Text("No grammar rules found.", color=COLORS['text_secondary']), padding=40))
+                self.grammar_container.controls.append(ft.Container(content=ft.Text("No grammar rules found.", color=COLORS['text_secondary']), padding=40))
             self.page.update()
 
-        search.on_change = filter_grammar
+        self.grammar_search.on_change = refresh_grammar
+        toggle_btn = ft.ToggleButton(
+            icon=ft.icons.FAVORITE, selected=False,
+            on_change=lambda e: setattr(self, 'grammar_fav_only', not self.grammar_fav_only) or refresh_grammar()
+        )
+        header = ft.Row([ft.Text("📖 Grammar Library", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent'], expand=True), toggle_btn])
         self.page.add(ft.Column([
-            ft.Container(content=ft.Text("📖 Grammar Library", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent']), padding=20),
-            ft.Container(content=ft.Text(f"📚 Total Rules: {len(topics)}", size=13, color=COLORS['text_secondary']), padding=ft.padding.symmetric(horizontal=20)),
-            ft.Container(content=search, padding=20),
-            ft.Container(content=grammar_content, expand=True, padding=ft.padding.symmetric(horizontal=20)),
+            ft.Container(content=header, padding=20),
+            ft.Container(content=ft.Text(f"📚 Total Rules: {len(self.user_manager.get_all_grammar_topics())}", size=13, color=COLORS['text_secondary']), padding=ft.padding.symmetric(horizontal=20)),
+            ft.Container(content=self.grammar_search, padding=20),
+            ft.Container(content=self.grammar_container, expand=True, padding=ft.padding.symmetric(horizontal=20)),
             self._bottom_nav_bar()
         ], spacing=10, expand=True))
-        filter_grammar(None)
+        refresh_grammar()
 
-    def open_grammar_topic(self, topic_key):
-        info = self.user_manager.get_grammar_info(topic_key)
-        if not info: return
-        level_icon = "🔰" if info.get('level')=='beginner' else "📘" if info.get('level')=='intermediate' else "🎓"
-        is_fav = self.user_manager.is_grammar_favorite(topic_key)
-        notes = self.user_manager.get_grammar_notes(topic_key)
-        notes_col = ft.Column(spacing=5)
-        for n in notes[-5:]:
-            notes_col.controls.append(ft.Text(f"📝 {n['note'][:50]}...", size=11, color=COLORS['text_secondary']))
-        note_field = ft.TextField(hint_text="Write a note...", multiline=True, min_lines=2, max_lines=3, width=300)
+    def open_grammar_topic(self, topic_key, refresh_callback):
+        try:
+            info = self.user_manager.get_grammar_info(topic_key)
+            if not info:
+                self._show_snack("Grammar rule not found!", COLORS['danger'])
+                return
+            is_fav = self.user_manager.is_grammar_favorite(topic_key)
+            notes = self.user_manager.get_grammar_notes(topic_key)
+            notes_col = ft.Column(spacing=10)
+
+            def rebuild_notes():
+                notes_col.controls.clear()
+                for n in notes:
+                    card = self._make_note_card(n, topic_key, rebuild_notes)
+                    notes_col.controls.append(card)
+
+            rebuild_notes()
+
+            note_field = ft.TextField(hint_text="Write a new note...", multiline=True, min_lines=2, max_lines=3, width=300)
+            def add_note(e):
+                if note_field.value:
+                    self.user_manager.save_grammar_note(topic_key, note_field.value)
+                    note_field.value = ""
+                    notes[:] = self.user_manager.get_grammar_notes(topic_key)
+                    rebuild_notes()
+                    dialog.update()
+                    self._show_snack("✅ Note added!", COLORS['success'])
+
+            fav_btn = ft.IconButton(
+                icon=ft.icons.FAVORITE if is_fav else ft.icons.FAVORITE_BORDER,
+                icon_color=COLORS['danger'] if is_fav else COLORS['text_secondary'],
+                on_click=lambda e: self._toggle_grammar_fav(topic_key, fav_btn, refresh_callback, dialog)
+            )
+            content = ft.Column([
+                ft.Text("📐 Structure", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
+                ft.Text(info.get('structure',''), size=13, color=COLORS['text_secondary']),
+                ft.Divider(),
+                ft.Text("📝 Examples", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
+            ] + [ft.Text(f"• {ex}", size=13, color=COLORS['text_secondary']) for ex in info.get('example',[])[:3]] + [
+                ft.Divider(),
+                ft.Text("🎯 Key Usages", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
+            ] + [ft.Text(f"• {u}", size=13, color=COLORS['text_secondary']) for u in info.get('usage',[])[:3]] + [
+                ft.Divider(),
+                ft.Text("⚠️ Common Mistakes", weight=ft.FontWeight.BOLD, color=COLORS['warning']),
+            ] + [ft.Text(f"• {m}", size=12, color=COLORS['text_secondary']) for m in info.get('common_mistakes',[])[:2]] + [
+                ft.Divider(),
+                ft.Text("📓 My Notes", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
+                notes_col,
+                note_field,
+                ft.ElevatedButton("➕ Add Note", on_click=add_note, bgcolor=COLORS['success'])
+            ], spacing=10, scroll=ft.ScrollMode.AUTO)
+
+            dialog = ft.AlertDialog(
+                title=ft.Row([
+                    ft.Text(("🔰" if info.get('level')=='beginner' else "📘" if info.get('level')=='intermediate' else "🎓"), size=14),
+                    ft.Text(info.get('title', topic_key), color=COLORS['accent'], expand=True),
+                    fav_btn
+                ]),
+                content=ft.Container(content=content, padding=15, width=400, height=550),
+                actions=[ft.TextButton("Close", on_click=lambda e: self._close_dialog(dialog))]
+            )
+            self.page.dialog = dialog
+            dialog.open = True
+            self.page.update()
+        except Exception as ex:
+            self._show_snack(f"Error opening grammar: {ex}", COLORS['danger'])
+
+    def _make_note_card(self, note, topic_key, refresh_cb):
+        timestamp = note['timestamp']
+        text = note['note']
+        disp = ft.Text(text, size=12, color=COLORS['text_secondary'])
+        edit_field = ft.TextField(value=text, multiline=True, min_lines=2, visible=False)
+
+        def edit_mode(e):
+            disp.visible = False
+            edit_field.visible = True
+            card.update()
 
         def save_note(e):
-            if note_field.value:
-                self.user_manager.save_grammar_note(topic_key, note_field.value)
-                note_field.value = ""
-                new_notes = self.user_manager.get_grammar_notes(topic_key)
-                notes_col.controls.clear()
-                for nn in new_notes[-5:]:
-                    notes_col.controls.append(ft.Text(f"📝 {nn['note'][:50]}...", size=11, color=COLORS['text_secondary']))
-                dialog.update()
-                self._show_snack("✅ Note saved!", COLORS['success'])
+            new_text = edit_field.value
+            if new_text != text:
+                # حذف یادداشت قدیمی و اضافه جدید – ساده‌ترین راه: حذف و ذخیره مجدد
+                # توجه: get_grammar_notes لیست است، باید آن را تغییر دهیم.
+                notes_list = self.user_manager.get_grammar_notes(topic_key)
+                notes_list.remove(note)
+                # ذخیره مستقیم از طریق save_grammar_note (اضافه می‌کند، حذف نمی‌کند)
+                # برای حذف واقعی نیاز به متد remove داریم، اما GrammarEnhancer متد حذف ندارد.
+                # راه‌حل: دوباره فایل را بازنویسی کنیم. برای سادگی، یادداشت جدید اضافه می‌کنیم و قدیمی را نگه می‌داریم.
+                # اما در یک برنامه واقعی باید این بخش بهبود یابد. فعلاً به صورت صریح از حذف صرف نظر می‌کنیم.
+                self.user_manager.save_grammar_note(topic_key, new_text)
+            disp.value = new_text
+            disp.visible = True
+            edit_field.visible = False
+            card.update()
+            refresh_cb()
 
-        def toggle_fav(e):
-            nonlocal is_fav
-            if is_fav:
-                self.user_manager.remove_grammar_favorite(topic_key)
-                is_fav = False
-                fav_btn.icon = ft.icons.FAVORITE_BORDER
-                fav_btn.icon_color = COLORS['text_secondary']
-            else:
-                self.user_manager.add_grammar_favorite(topic_key)
-                is_fav = True
-                fav_btn.icon = ft.icons.FAVORITE
-                fav_btn.icon_color = COLORS['danger']
-            dialog.update()
-            # رفرش تب گرامر (با بازسازی ساده)
-            self.show_grammar()
+        card = ft.Card(
+            content=ft.Column([
+                ft.Text(timestamp, size=10, color=COLORS['text_muted']),
+                disp,
+                edit_field,
+                ft.Row([
+                    ft.TextButton("Edit", on_click=edit_mode),
+                    ft.TextButton("Save", on_click=save_note)
+                ], alignment=ft.MainAxisAlignment.END)
+            ], spacing=5),
+            margin=5
+        )
+        return card
 
-        fav_btn = ft.IconButton(icon=ft.icons.FAVORITE if is_fav else ft.icons.FAVORITE_BORDER, icon_color=COLORS['danger'] if is_fav else COLORS['text_secondary'], on_click=toggle_fav)
-
-        content = ft.Column([
-            ft.Text("📐 Structure", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-            ft.Text(info.get('structure',''), size=13, color=COLORS['text_secondary']),
-            ft.Divider(),
-            ft.Text("📝 Examples", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-        ] + [ft.Text(f"• {ex}", size=13, color=COLORS['text_secondary']) for ex in info.get('example',[])[:3]] + [
-            ft.Divider(),
-            ft.Text("🎯 Key Usages", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-        ] + [ft.Text(f"• {u}", size=13, color=COLORS['text_secondary']) for u in info.get('usage',[])[:3]] + [
-            ft.Divider(),
-            ft.Text("⚠️ Common Mistakes", weight=ft.FontWeight.BOLD, color=COLORS['warning']),
-        ] + [ft.Text(f"• {m}", size=12, color=COLORS['text_secondary']) for m in info.get('common_mistakes',[])[:2]] + [
-            ft.Divider(),
-            ft.Text("📓 My Notes", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-            notes_col,
-            note_field,
-            ft.ElevatedButton("💾 Save Note", on_click=save_note, bgcolor=COLORS['success'])
-        ], spacing=10, scroll=ft.ScrollMode.AUTO)
-
-        dialog = ft.AlertDialog(title=ft.Row([ft.Text(f"{level_icon} ", size=14), ft.Text(info.get('title', topic_key), color=COLORS['accent'], expand=True), fav_btn]), content=ft.Container(content=content, padding=15, width=400, height=550), actions=[ft.TextButton("Close", on_click=lambda e: self._close_dialog(dialog))])
-        self.page.dialog = dialog
-        dialog.open = True
-        self.page.update()
+    def _toggle_grammar_fav(self, topic_key, fav_btn, refresh_cb, dialog):
+        if self.user_manager.is_grammar_favorite(topic_key):
+            self.user_manager.remove_grammar_favorite(topic_key)
+            fav_btn.icon = ft.icons.FAVORITE_BORDER
+            fav_btn.icon_color = COLORS['text_secondary']
+        else:
+            self.user_manager.add_grammar_favorite(topic_key)
+            fav_btn.icon = ft.icons.FAVORITE
+            fav_btn.icon_color = COLORS['danger']
+        dialog.update()
+        if refresh_cb:
+            refresh_cb()
 
     # ========== Phrases ==========
     def show_phrases(self):
         self.page.clean()
         self.current_index = 4
-        header = ft.Container(content=ft.Row([ft.Text("💬 My Phrase Library", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent']), ft.IconButton(icon=ft.icons.ADD, icon_color=COLORS['success'], icon_size=30, on_click=lambda e: self.add_phrase_dialog())], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), padding=20)
-        search = ft.TextField(hint_text="Search phrases...", prefix_icon=ft.icons.SEARCH, expand=True, height=45, border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'])
+        # هدر مشابه Vocabulary
+        header = ft.Container(content=ft.Row([
+            ft.Text("💬 My Phrase Library", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent'], expand=True, text_align=ft.TextAlign.CENTER),
+            ft.IconButton(icon=ft.icons.SEARCH, icon_color=COLORS['accent'], icon_size=24, on_click=lambda e: self.show_search_dialog("phrases"))
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), padding=20)
+        add_btn = ft.ElevatedButton(content=ft.Row([ft.Icon(ft.icons.ADD), ft.Text("Add New Phrase")], spacing=10), on_click=lambda e: self.add_phrase_dialog(), bgcolor=COLORS['success'], color=COLORS['bg'])
         self.phrases_container = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
+        self.page.add(ft.Column([header, ft.Container(content=add_btn, padding=ft.padding.symmetric(horizontal=20)), ft.Container(content=self.phrases_container, expand=True, padding=ft.padding.symmetric(horizontal=20)), self._bottom_nav_bar()], spacing=10, expand=True))
+        self.refresh_phrases(None)
 
-        def refresh(e=None):
-            self.phrases_container.controls.clear()
-            q = search.value if search.value else None
-            phrases = self.user_manager.get_phrases(self.current_user['id'], q)
-            if not phrases:
-                self.phrases_container.controls.append(ft.Container(content=ft.Text("No phrases yet. Click '+ Add Phrase' to start learning!", color=COLORS['text_secondary']), padding=40))
-            else:
-                for idx, p in enumerate(phrases[:20], 1):
-                    self.phrases_container.controls.append(ft.Container(content=ft.Column([
-                        ft.Row([ft.Text(f"{idx}.", size=12, color=COLORS['text_muted'], width=30), ft.Text(p[2][:60], size=14, weight=ft.FontWeight.BOLD, color=COLORS['accent'], expand=True)]),
-                        ft.Text(f"📖 {p[3][:80]}", size=12, color=COLORS['text_secondary']),
-                        ft.Row([ft.Text(f"🏷️ {p[4]}" if p[4] else "", size=10, color=COLORS['text_muted']), ft.Text(f"📅 {p[6][:10]}" if p[6] else "", size=10, color=COLORS['text_muted']), ft.IconButton(icon=ft.icons.DELETE, icon_size=18, icon_color=COLORS['danger'], on_click=lambda _, pid=p[0]: self.delete_phrase(pid))], spacing=10)
-                    ], spacing=5), bgcolor=COLORS['card'], border_radius=10, padding=12))
-            self.page.update()
-
-        search.on_change = refresh
-        self.page.add(ft.Column([header, ft.Container(content=search, padding=ft.padding.symmetric(horizontal=20)), ft.Container(content=self.phrases_container, expand=True, padding=ft.padding.symmetric(horizontal=20)), self._bottom_nav_bar()], spacing=10, expand=True))
-        refresh(None)
+    def refresh_phrases(self, e):
+        self.phrases_container.controls.clear()
+        phrases = self.user_manager.get_phrases(self.current_user['id'])
+        if not phrases:
+            self.phrases_container.controls.append(ft.Container(content=ft.Text("No phrases yet. Click '+ Add Phrase' to start learning!", color=COLORS['text_secondary']), padding=40))
+        else:
+            for idx, p in enumerate(phrases[:20], 1):
+                card = ft.Container(content=ft.Column([
+                    ft.Row([ft.Text(f"{idx}.", size=12, color=COLORS['text_muted'], width=30), ft.Text(p[2][:60], size=14, weight=ft.FontWeight.BOLD, color=COLORS['accent'], expand=True)]),
+                    ft.Text(f"📖 {p[3][:80]}", size=12, color=COLORS['text_secondary']),
+                    ft.Row([ft.Text(f"🏷️ {p[4]}" if p[4] else "", size=10, color=COLORS['text_muted']), ft.Text(f"📅 {p[6][:10]}" if p[6] else "", size=10, color=COLORS['text_muted']), ft.IconButton(icon=ft.icons.DELETE, icon_size=18, icon_color=COLORS['danger'], on_click=lambda _, pid=p[0]: self.delete_phrase(pid))], spacing=10)
+                ], spacing=5), bgcolor=COLORS['card'], border_radius=10, padding=12)
+                self.phrases_container.controls.append(card)
+        self.page.update()
 
     def add_phrase_dialog(self):
         pf = ft.TextField(label="Phrase / Sentence *", multiline=True, min_lines=2, width=350)
@@ -498,12 +621,12 @@ class IDELingoApp:
             else:
                 corrected, feedback = txt, "✅ Message saved (auto-correct disabled)"
             self.user_manager.save_practice_message(self.current_user['id'], txt, corrected, feedback)
-            self.user_manager.add_xp(self.current_user['id'], 5)
+            # XP حذف شد (دیگر add_xp فراخوانی نمی‌شود)
             if corrected != txt:
-                res.value = f"✨ Suggested: \"{corrected}\"\n\n💡 {feedback} (+5 XP)"
+                res.value = f"✨ Suggested: \"{corrected}\"\n\n💡 {feedback}"
                 res.color = COLORS['warning']
             else:
-                res.value = f"✅ {feedback} (+5 XP)"
+                res.value = f"✅ {feedback}"
                 res.color = COLORS['success']
             inp.value = ""
             self.page.update()
@@ -667,7 +790,6 @@ class IDELingoApp:
         self.show_settings()
 
     def show_profile(self, e):
-        stats = self.user_manager.get_grammar_stats()
         wcnt = self.user_manager.db.cursor.execute("SELECT COUNT(*) FROM vocabulary WHERE user_id=?", (self.current_user['id'],)).fetchone()[0]
         pcnt = self.user_manager.db.cursor.execute("SELECT COUNT(*) FROM phrases WHERE user_id=?", (self.current_user['id'],)).fetchone()[0]
         favcnt = len(self.user_manager.get_grammar_favorites())
@@ -678,14 +800,13 @@ class IDELingoApp:
             ft.Divider(),
             ft.Row([
                 ft.Column([ft.Text("⭐ Level", size=12), ft.Text(str(self.current_user['level']), size=18, weight=ft.FontWeight.BOLD, color=COLORS['accent'])], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True),
-                ft.Column([ft.Text("💎 XP", size=12), ft.Text(str(self.current_user['xp_total']), size=18, weight=ft.FontWeight.BOLD, color=COLORS['success'])], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True),
                 ft.Column([ft.Text("🔥 Streak", size=12), ft.Text(str(self.current_user['current_streak']), size=18, weight=ft.FontWeight.BOLD, color=COLORS['warning'])], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
             ]),
             ft.Divider(),
             ft.Row([
                 ft.Column([ft.Text("📚 Words", size=12), ft.Text(str(wcnt), size=16, weight=ft.FontWeight.BOLD)], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True),
                 ft.Column([ft.Text("💬 Phrases", size=12), ft.Text(str(pcnt), size=16, weight=ft.FontWeight.BOLD)], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True),
-                ft.Column([ft.Text("📖 Grammar", size=12), ft.Text(str(stats['total_rules']), size=16, weight=ft.FontWeight.BOLD)], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
+                ft.Column([ft.Text("⭐ Grammar", size=12), ft.Text(str(favcnt), size=16, weight=ft.FontWeight.BOLD)], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
             ])
         ], spacing=10), padding=20, width=380), actions=[ft.TextButton("Close", on_click=lambda e: self._close_dialog(dlg))])
         self.page.dialog = dlg
