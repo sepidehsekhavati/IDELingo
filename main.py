@@ -366,184 +366,102 @@ class IDELingoApp:
     def show_grammar(self):
         self.page.clean()
         self.current_index = 2
-        self.grammar_fav_only = True
-        self.grammar_search = ft.TextField(
-            hint_text="Search grammar rules...", prefix_icon=ft.icons.SEARCH, expand=True, height=45,
-            border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text']
-        )
-        self.grammar_container = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
+        topics = self.user_manager.get_all_grammar_topics()
+        search = ft.TextField(hint_text="Search grammar rules...", prefix_icon=ft.icons.SEARCH, expand=True, height=45, border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'])
+        grammar_content = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
-        def refresh_grammar(e=None):
-            self.grammar_container.controls.clear()
-            query = self.grammar_search.value.strip().lower() if self.grammar_search.value else ""
-            if query:
-                # جستجو در همه قوانین
-                topics = self.user_manager.get_all_grammar_topics()
-                filtered = [t for t in topics if query in t.lower()]
-            else:
-                if self.grammar_fav_only:
-                    favs = self.user_manager.get_grammar_favorites()
-                    filtered = [fav['key'] for fav in favs]
-                else:
-                    filtered = self.user_manager.get_all_grammar_topics()
-            for topic in filtered[:30]:
-                info = self.user_manager.get_grammar_info(topic)
-                title = info.get('title', topic.replace('_', ' ').title()) if info else topic.replace('_', ' ').title()
+        def filter_grammar(e):
+            q = search.value.lower() if search.value else ""
+            grammar_content.controls.clear()
+            filtered = [t for t in topics if q in t.lower()] if q else topics
+            for t in filtered[:30]:
+                info = self.user_manager.get_grammar_info(t)
+                title = info.get('title', t.replace('_', ' ').title()) if info else t.replace('_', ' ').title()
                 level = info.get('level','beginner') if info else 'beginner'
                 level_icon = "🔰" if level=='beginner' else "📘" if level=='intermediate' else "🎓"
-                is_fav = self.user_manager.is_grammar_favorite(topic)
+                is_fav = self.user_manager.is_grammar_favorite(t)
                 fav_icon = "❤️" if is_fav else "🤍"
-                btn = ft.Container(
-                    content=ft.Row([
-                        ft.Text(f"{level_icon} {fav_icon}", size=14),
-                        ft.Text(title, size=14, color=COLORS['text'], expand=True),
-                        ft.Icon(ft.icons.CHEVRON_RIGHT, color=COLORS['text_muted'], size=18)
-                    ]),
-                    bgcolor=COLORS['card'], border_radius=8, padding=12,
-                    on_click=lambda _, t=topic: self.open_grammar_topic(t, refresh_grammar)
-                )
-                self.grammar_container.controls.append(btn)
+                grammar_content.controls.append(ft.Container(
+                    content=ft.Row([ft.Text(f"{level_icon} {fav_icon}", size=14), ft.Text(title, size=14, color=COLORS['text'], expand=True), ft.Icon(ft.icons.CHEVRON_RIGHT, color=COLORS['text_muted'], size=18)]),
+                    bgcolor=COLORS['card'], border_radius=8, padding=12, on_click=lambda _, tt=t: self.open_grammar_topic(tt)
+                ))
             if not filtered:
-                self.grammar_container.controls.append(ft.Container(content=ft.Text("No grammar rules found.", color=COLORS['text_secondary']), padding=40))
+                grammar_content.controls.append(ft.Container(content=ft.Text("No grammar rules found.", color=COLORS['text_secondary']), padding=40))
             self.page.update()
 
-        self.grammar_search.on_change = refresh_grammar
-        toggle_btn = ft.ToggleButton(
-            icon=ft.icons.FAVORITE, selected=False,
-            on_change=lambda e: setattr(self, 'grammar_fav_only', not self.grammar_fav_only) or refresh_grammar()
-        )
-        header = ft.Row([ft.Text("📖 Grammar Library", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent'], expand=True), toggle_btn])
+        search.on_change = filter_grammar
         self.page.add(ft.Column([
-            ft.Container(content=header, padding=20),
-            ft.Container(content=ft.Text(f"📚 Total Rules: {len(self.user_manager.get_all_grammar_topics())}", size=13, color=COLORS['text_secondary']), padding=ft.padding.symmetric(horizontal=20)),
-            ft.Container(content=self.grammar_search, padding=20),
-            ft.Container(content=self.grammar_container, expand=True, padding=ft.padding.symmetric(horizontal=20)),
+            ft.Container(content=ft.Text("📖 Grammar Library", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent']), padding=20),
+            ft.Container(content=ft.Text(f"📚 Total Rules: {len(topics)}", size=13, color=COLORS['text_secondary']), padding=ft.padding.symmetric(horizontal=20)),
+            ft.Container(content=search, padding=20),
+            ft.Container(content=grammar_content, expand=True, padding=ft.padding.symmetric(horizontal=20)),
             self._bottom_nav_bar()
         ], spacing=10, expand=True))
-        refresh_grammar()
+        filter_grammar(None)
 
-    def open_grammar_topic(self, topic_key, refresh_callback):
-        try:
-            info = self.user_manager.get_grammar_info(topic_key)
-            if not info:
-                self._show_snack("Grammar rule not found!", COLORS['danger'])
-                return
-            is_fav = self.user_manager.is_grammar_favorite(topic_key)
-            notes = self.user_manager.get_grammar_notes(topic_key)
-            notes_col = ft.Column(spacing=10)
-
-            def rebuild_notes():
-                notes_col.controls.clear()
-                for n in notes:
-                    card = self._make_note_card(n, topic_key, rebuild_notes)
-                    notes_col.controls.append(card)
-
-            rebuild_notes()
-
-            note_field = ft.TextField(hint_text="Write a new note...", multiline=True, min_lines=2, max_lines=3, width=300)
-            def add_note(e):
-                if note_field.value:
-                    self.user_manager.save_grammar_note(topic_key, note_field.value)
-                    note_field.value = ""
-                    notes[:] = self.user_manager.get_grammar_notes(topic_key)
-                    rebuild_notes()
-                    dialog.update()
-                    self._show_snack("✅ Note added!", COLORS['success'])
-
-            fav_btn = ft.IconButton(
-                icon=ft.icons.FAVORITE if is_fav else ft.icons.FAVORITE_BORDER,
-                icon_color=COLORS['danger'] if is_fav else COLORS['text_secondary'],
-                on_click=lambda e: self._toggle_grammar_fav(topic_key, fav_btn, refresh_callback, dialog)
-            )
-            content = ft.Column([
-                ft.Text("📐 Structure", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-                ft.Text(info.get('structure',''), size=13, color=COLORS['text_secondary']),
-                ft.Divider(),
-                ft.Text("📝 Examples", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-            ] + [ft.Text(f"• {ex}", size=13, color=COLORS['text_secondary']) for ex in info.get('example',[])[:3]] + [
-                ft.Divider(),
-                ft.Text("🎯 Key Usages", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-            ] + [ft.Text(f"• {u}", size=13, color=COLORS['text_secondary']) for u in info.get('usage',[])[:3]] + [
-                ft.Divider(),
-                ft.Text("⚠️ Common Mistakes", weight=ft.FontWeight.BOLD, color=COLORS['warning']),
-            ] + [ft.Text(f"• {m}", size=12, color=COLORS['text_secondary']) for m in info.get('common_mistakes',[])[:2]] + [
-                ft.Divider(),
-                ft.Text("📓 My Notes", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-                notes_col,
-                note_field,
-                ft.ElevatedButton("➕ Add Note", on_click=add_note, bgcolor=COLORS['success'])
-            ], spacing=10, scroll=ft.ScrollMode.AUTO)
-
-            dialog = ft.AlertDialog(
-                title=ft.Row([
-                    ft.Text(("🔰" if info.get('level')=='beginner' else "📘" if info.get('level')=='intermediate' else "🎓"), size=14),
-                    ft.Text(info.get('title', topic_key), color=COLORS['accent'], expand=True),
-                    fav_btn
-                ]),
-                content=ft.Container(content=content, padding=15, width=400, height=550),
-                actions=[ft.TextButton("Close", on_click=lambda e: self._close_dialog(dialog))]
-            )
-            self.page.dialog = dialog
-            dialog.open = True
-            self.page.update()
-        except Exception as ex:
-            self._show_snack(f"Error opening grammar: {ex}", COLORS['danger'])
-
-    def _make_note_card(self, note, topic_key, refresh_cb):
-        timestamp = note['timestamp']
-        text = note['note']
-        disp = ft.Text(text, size=12, color=COLORS['text_secondary'])
-        edit_field = ft.TextField(value=text, multiline=True, min_lines=2, visible=False)
-
-        def edit_mode(e):
-            disp.visible = False
-            edit_field.visible = True
-            card.update()
+    def open_grammar_topic(self, topic_key):
+        info = self.user_manager.get_grammar_info(topic_key)
+        if not info: return
+        level_icon = "🔰" if info.get('level')=='beginner' else "📘" if info.get('level')=='intermediate' else "🎓"
+        is_fav = self.user_manager.is_grammar_favorite(topic_key)
+        notes = self.user_manager.get_grammar_notes(topic_key)
+        notes_col = ft.Column(spacing=5)
+        for n in notes[-5:]:
+            notes_col.controls.append(ft.Text(f"📝 {n['note'][:50]}...", size=11, color=COLORS['text_secondary']))
+        note_field = ft.TextField(hint_text="Write a note...", multiline=True, min_lines=2, max_lines=3, width=300)
 
         def save_note(e):
-            new_text = edit_field.value
-            if new_text != text:
-                # حذف یادداشت قدیمی و اضافه جدید – ساده‌ترین راه: حذف و ذخیره مجدد
-                # توجه: get_grammar_notes لیست است، باید آن را تغییر دهیم.
-                notes_list = self.user_manager.get_grammar_notes(topic_key)
-                notes_list.remove(note)
-                # ذخیره مستقیم از طریق save_grammar_note (اضافه می‌کند، حذف نمی‌کند)
-                # برای حذف واقعی نیاز به متد remove داریم، اما GrammarEnhancer متد حذف ندارد.
-                # راه‌حل: دوباره فایل را بازنویسی کنیم. برای سادگی، یادداشت جدید اضافه می‌کنیم و قدیمی را نگه می‌داریم.
-                # اما در یک برنامه واقعی باید این بخش بهبود یابد. فعلاً به صورت صریح از حذف صرف نظر می‌کنیم.
-                self.user_manager.save_grammar_note(topic_key, new_text)
-            disp.value = new_text
-            disp.visible = True
-            edit_field.visible = False
-            card.update()
-            refresh_cb()
+            if note_field.value:
+                self.user_manager.save_grammar_note(topic_key, note_field.value)
+                note_field.value = ""
+                new_notes = self.user_manager.get_grammar_notes(topic_key)
+                notes_col.controls.clear()
+                for nn in new_notes[-5:]:
+                    notes_col.controls.append(ft.Text(f"📝 {nn['note'][:50]}...", size=11, color=COLORS['text_secondary']))
+                dialog.update()
+                self._show_snack("✅ Note saved!", COLORS['success'])
 
-        card = ft.Card(
-            content=ft.Column([
-                ft.Text(timestamp, size=10, color=COLORS['text_muted']),
-                disp,
-                edit_field,
-                ft.Row([
-                    ft.TextButton("Edit", on_click=edit_mode),
-                    ft.TextButton("Save", on_click=save_note)
-                ], alignment=ft.MainAxisAlignment.END)
-            ], spacing=5),
-            margin=5
-        )
-        return card
+        def toggle_fav(e):
+            nonlocal is_fav
+            if is_fav:
+                self.user_manager.remove_grammar_favorite(topic_key)
+                is_fav = False
+                fav_btn.icon = ft.icons.FAVORITE_BORDER
+                fav_btn.icon_color = COLORS['text_secondary']
+            else:
+                self.user_manager.add_grammar_favorite(topic_key)
+                is_fav = True
+                fav_btn.icon = ft.icons.FAVORITE
+                fav_btn.icon_color = COLORS['danger']
+            dialog.update()
+            # رفرش تب گرامر (با بازسازی ساده)
+            self.show_grammar()
 
-    def _toggle_grammar_fav(self, topic_key, fav_btn, refresh_cb, dialog):
-        if self.user_manager.is_grammar_favorite(topic_key):
-            self.user_manager.remove_grammar_favorite(topic_key)
-            fav_btn.icon = ft.icons.FAVORITE_BORDER
-            fav_btn.icon_color = COLORS['text_secondary']
-        else:
-            self.user_manager.add_grammar_favorite(topic_key)
-            fav_btn.icon = ft.icons.FAVORITE
-            fav_btn.icon_color = COLORS['danger']
-        dialog.update()
-        if refresh_cb:
-            refresh_cb()
+        fav_btn = ft.IconButton(icon=ft.icons.FAVORITE if is_fav else ft.icons.FAVORITE_BORDER, icon_color=COLORS['danger'] if is_fav else COLORS['text_secondary'], on_click=toggle_fav)
+
+        content = ft.Column([
+            ft.Text("📐 Structure", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
+            ft.Text(info.get('structure',''), size=13, color=COLORS['text_secondary']),
+            ft.Divider(),
+            ft.Text("📝 Examples", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
+        ] + [ft.Text(f"• {ex}", size=13, color=COLORS['text_secondary']) for ex in info.get('example',[])[:3]] + [
+            ft.Divider(),
+            ft.Text("🎯 Key Usages", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
+        ] + [ft.Text(f"• {u}", size=13, color=COLORS['text_secondary']) for u in info.get('usage',[])[:3]] + [
+            ft.Divider(),
+            ft.Text("⚠️ Common Mistakes", weight=ft.FontWeight.BOLD, color=COLORS['warning']),
+        ] + [ft.Text(f"• {m}", size=12, color=COLORS['text_secondary']) for m in info.get('common_mistakes',[])[:2]] + [
+            ft.Divider(),
+            ft.Text("📓 My Notes", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
+            notes_col,
+            note_field,
+            ft.ElevatedButton("💾 Save Note", on_click=save_note, bgcolor=COLORS['success'])
+        ], spacing=10, scroll=ft.ScrollMode.AUTO)
+
+        dialog = ft.AlertDialog(title=ft.Row([ft.Text(f"{level_icon} ", size=14), ft.Text(info.get('title', topic_key), color=COLORS['accent'], expand=True), fav_btn]), content=ft.Container(content=content, padding=15, width=400, height=550), actions=[ft.TextButton("Close", on_click=lambda e: self._close_dialog(dialog))])
+        self.page.dialog = dialog
+        dialog.open = True
+        self.page.update()
 
     # ========== Phrases ==========
     def show_phrases(self):
