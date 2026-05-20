@@ -402,93 +402,28 @@ class IDELingoApp:
         ], spacing=10, expand=True))
         filter_grammar(None)
 
-        def open_grammar_topic(self, topic_key):
+    def open_grammar_topic(self, topic_key):
         info = self.user_manager.get_grammar_info(topic_key)
         if not info:
             return
         level_icon = "🔰" if info.get('level') == 'beginner' else "📘" if info.get('level') == 'intermediate' else "🎓"
         is_fav = self.user_manager.is_grammar_favorite(topic_key)
         notes = self.user_manager.get_grammar_notes(topic_key)
-        
-        # بخش یادداشت‌ها - با کارت‌های خوانا و قابل ویرایش
-        notes_col = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, height=250)
-        
-        def rebuild_notes():
-            notes_col.controls.clear()
-            for idx, n in enumerate(notes):
-                note_text = n['note']
-                timestamp = n['timestamp']
-                
-                # نمایش متن یادداشت
-                display_text = ft.Text(note_text, size=12, color=COLORS['text_secondary'], selectable=True)
-                edit_field = ft.TextField(value=note_text, multiline=True, min_lines=2, max_lines=5, visible=False)
-                
-                def edit_mode(disp, edit, card):
-                    disp.visible = False
-                    edit.visible = True
-                    card.update()
-                
-                def save_note(disp, edit, card, old_text):
-                    new_text = edit.value
-                    if new_text != old_text:
-                        # حذف یادداشت قدیمی
-                        notes_list = self.user_manager.get_grammar_notes(topic_key)
-                        for i, note in enumerate(notes_list):
-                            if note['timestamp'] == timestamp and note['note'] == old_text:
-                                notes_list.pop(i)
-                                break
-                        # ذخیره یادداشت جدید
-                        self.user_manager.save_grammar_note(topic_key, new_text)
-                        # به‌روزرسانی لیست
-                        notes[:] = self.user_manager.get_grammar_notes(topic_key)
-                        rebuild_notes()
-                        dialog.update()
-                        self._show_snack("✅ Note updated!", COLORS['success'])
-                    else:
-                        disp.visible = True
-                        edit.visible = False
-                        card.update()
-                
-                # کارت یادداشت
-                note_card = ft.Card(
-                    content=ft.Container(
-                        content=ft.Column([
-                            ft.Text(timestamp, size=10, color=COLORS['text_muted']),
-                            display_text,
-                            edit_field,
-                            ft.Row([
-                                ft.TextButton("✏️ Edit", on_click=lambda e, d=display_text, ed=edit_field, c=note_card: edit_mode(d, ed, c)),
-                                ft.TextButton("💾 Save", on_click=lambda e, d=display_text, ed=edit_field, c=note_card, old=note_text: save_note(d, ed, c, old))
-                            ], alignment=ft.MainAxisAlignment.END)
-                        ], spacing=5),
-                        padding=10
-                    ),
-                    margin=5,
-                    elevation=2
-                )
-                notes_col.controls.append(note_card)
-            
-            if not notes:
-                notes_col.controls.append(
-                    ft.Container(
-                        content=ft.Text("No notes yet. Write your first note above!", size=12, color=COLORS['text_secondary'], italic=True),
-                        padding=20,
-                        alignment=ft.alignment.center
-                    )
-                )
-            dialog.update()
-        
-        rebuild_notes()
-        
+        notes_col = ft.Column(spacing=5)
+        for n in notes[-5:]:
+            notes_col.controls.append(ft.Text(f"📝 {n['note'][:50]}...", size=11, color=COLORS['text_secondary']))
         note_field = ft.TextField(hint_text="Write a note...", multiline=True, min_lines=2, max_lines=3, width=300)
 
-        def add_note(e):
+        def save_note(e):
             if note_field.value:
                 self.user_manager.save_grammar_note(topic_key, note_field.value)
                 note_field.value = ""
-                notes[:] = self.user_manager.get_grammar_notes(topic_key)
-                rebuild_notes()
-                self._show_snack("✅ Note added!", COLORS['success'])
+                new_notes = self.user_manager.get_grammar_notes(topic_key)
+                notes_col.controls.clear()
+                for nn in new_notes[-5:]:
+                    notes_col.controls.append(ft.Text(f"📝 {nn['note'][:50]}...", size=11, color=COLORS['text_secondary']))
+                dialog.update()
+                self._show_snack("✅ Note saved!", COLORS['success'])
 
         def toggle_fav(e):
             nonlocal is_fav
@@ -524,12 +459,12 @@ class IDELingoApp:
             ft.Text("📓 My Notes", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
             notes_col,
             note_field,
-            ft.ElevatedButton("➕ Add Note", on_click=add_note, bgcolor=COLORS['success'])
+            ft.ElevatedButton("💾 Save Note", on_click=save_note, bgcolor=COLORS['success'])
         ], spacing=10, scroll=ft.ScrollMode.AUTO)
 
         dialog = ft.AlertDialog(
             title=ft.Row([ft.Text(f"{level_icon} ", size=14), ft.Text(info.get('title', topic_key), color=COLORS['accent'], expand=True), fav_btn]),
-            content=ft.Container(content=content, padding=15, width=400, height=600),
+            content=ft.Container(content=content, padding=15, width=400, height=550),
             actions=[ft.TextButton("Close", on_click=lambda e: self._close_dialog(dialog))]
         )
         self.page.dialog = dialog
