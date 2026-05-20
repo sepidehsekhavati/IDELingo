@@ -362,12 +362,13 @@ class IDELingoApp:
         dlg.open = True
         self.page.update()
 
-    # ========== Grammar (فقط favorites + جستجوی کامل + رفرش خودکار) ==========
+        # ========== Grammar (نسخه ساده و تست شده) ==========
     def show_grammar(self):
         self.page.clean()
         self.current_index = 2
         topics = self.user_manager.get_all_grammar_topics()
-        search = ft.TextField(hint_text="Search grammar rules...", prefix_icon=ft.icons.SEARCH, expand=True, height=45, border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'])
+        search = ft.TextField(hint_text="Search grammar rules...", prefix_icon=ft.icons.SEARCH, expand=True, height=45,
+                              border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'])
         grammar_content = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
         def filter_grammar(e):
@@ -377,14 +378,16 @@ class IDELingoApp:
             for t in filtered[:30]:
                 info = self.user_manager.get_grammar_info(t)
                 title = info.get('title', t.replace('_', ' ').title()) if info else t.replace('_', ' ').title()
-                level = info.get('level','beginner') if info else 'beginner'
-                level_icon = "🔰" if level=='beginner' else "📘" if level=='intermediate' else "🎓"
+                level = info.get('level', 'beginner') if info else 'beginner'
+                level_icon = "🔰" if level == 'beginner' else "📘" if level == 'intermediate' else "🎓"
                 is_fav = self.user_manager.is_grammar_favorite(t)
                 fav_icon = "❤️" if is_fav else "🤍"
-                grammar_content.controls.append(ft.Container(
+                btn = ft.Container(
                     content=ft.Row([ft.Text(f"{level_icon} {fav_icon}", size=14), ft.Text(title, size=14, color=COLORS['text'], expand=True), ft.Icon(ft.icons.CHEVRON_RIGHT, color=COLORS['text_muted'], size=18)]),
-                    bgcolor=COLORS['card'], border_radius=8, padding=12, on_click=lambda _, tt=t: self.open_grammar_topic(tt)
-                ))
+                    bgcolor=COLORS['card'], border_radius=8, padding=12,
+                    on_click=lambda _, tt=t: self.open_grammar_topic(tt)
+                )
+                grammar_content.controls.append(btn)
             if not filtered:
                 grammar_content.controls.append(ft.Container(content=ft.Text("No grammar rules found.", color=COLORS['text_secondary']), padding=40))
             self.page.update()
@@ -401,8 +404,9 @@ class IDELingoApp:
 
     def open_grammar_topic(self, topic_key):
         info = self.user_manager.get_grammar_info(topic_key)
-        if not info: return
-        level_icon = "🔰" if info.get('level')=='beginner' else "📘" if info.get('level')=='intermediate' else "🎓"
+        if not info:
+            return
+        level_icon = "🔰" if info.get('level') == 'beginner' else "📘" if info.get('level') == 'intermediate' else "🎓"
         is_fav = self.user_manager.is_grammar_favorite(topic_key)
         notes = self.user_manager.get_grammar_notes(topic_key)
         notes_col = ft.Column(spacing=5)
@@ -434,23 +438,23 @@ class IDELingoApp:
                 fav_btn.icon = ft.icons.FAVORITE
                 fav_btn.icon_color = COLORS['danger']
             dialog.update()
-            # رفرش تب گرامر (با بازسازی ساده)
-            self.show_grammar()
+            self.show_grammar()  # رفرش لیست گرامر
 
-        fav_btn = ft.IconButton(icon=ft.icons.FAVORITE if is_fav else ft.icons.FAVORITE_BORDER, icon_color=COLORS['danger'] if is_fav else COLORS['text_secondary'], on_click=toggle_fav)
+        fav_btn = ft.IconButton(icon=ft.icons.FAVORITE if is_fav else ft.icons.FAVORITE_BORDER,
+                                icon_color=COLORS['danger'] if is_fav else COLORS['text_secondary'], on_click=toggle_fav)
 
         content = ft.Column([
             ft.Text("📐 Structure", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-            ft.Text(info.get('structure',''), size=13, color=COLORS['text_secondary']),
+            ft.Text(info.get('structure', ''), size=13, color=COLORS['text_secondary']),
             ft.Divider(),
             ft.Text("📝 Examples", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-        ] + [ft.Text(f"• {ex}", size=13, color=COLORS['text_secondary']) for ex in info.get('example',[])[:3]] + [
+        ] + [ft.Text(f"• {ex}", size=13, color=COLORS['text_secondary']) for ex in info.get('example', [])[:3]] + [
             ft.Divider(),
             ft.Text("🎯 Key Usages", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-        ] + [ft.Text(f"• {u}", size=13, color=COLORS['text_secondary']) for u in info.get('usage',[])[:3]] + [
+        ] + [ft.Text(f"• {u}", size=13, color=COLORS['text_secondary']) for u in info.get('usage', [])[:3]] + [
             ft.Divider(),
             ft.Text("⚠️ Common Mistakes", weight=ft.FontWeight.BOLD, color=COLORS['warning']),
-        ] + [ft.Text(f"• {m}", size=12, color=COLORS['text_secondary']) for m in info.get('common_mistakes',[])[:2]] + [
+        ] + [ft.Text(f"• {m}", size=12, color=COLORS['text_secondary']) for m in info.get('common_mistakes', [])[:2]] + [
             ft.Divider(),
             ft.Text("📓 My Notes", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
             notes_col,
@@ -458,7 +462,11 @@ class IDELingoApp:
             ft.ElevatedButton("💾 Save Note", on_click=save_note, bgcolor=COLORS['success'])
         ], spacing=10, scroll=ft.ScrollMode.AUTO)
 
-        dialog = ft.AlertDialog(title=ft.Row([ft.Text(f"{level_icon} ", size=14), ft.Text(info.get('title', topic_key), color=COLORS['accent'], expand=True), fav_btn]), content=ft.Container(content=content, padding=15, width=400, height=550), actions=[ft.TextButton("Close", on_click=lambda e: self._close_dialog(dialog))])
+        dialog = ft.AlertDialog(
+            title=ft.Row([ft.Text(f"{level_icon} ", size=14), ft.Text(info.get('title', topic_key), color=COLORS['accent'], expand=True), fav_btn]),
+            content=ft.Container(content=content, padding=15, width=400, height=550),
+            actions=[ft.TextButton("Close", on_click=lambda e: self._close_dialog(dialog))]
+        )
         self.page.dialog = dialog
         dialog.open = True
         self.page.update()
