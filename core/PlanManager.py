@@ -1,13 +1,11 @@
 from datetime import datetime
 
-# ==================== Plan Manager ====================
 class PlanManager:
     def __init__(self, db):
         self.db = db
-    
+
     def get_user_plan(self, user_id):
-        self.db.cursor.execute('SELECT * FROM user_plans WHERE user_id = ?', (user_id,))
-        row = self.db.cursor.fetchone()
+        row = self.db.execute_query('SELECT * FROM user_plans WHERE user_id=?', (user_id,), fetchone=True)
         if not row:
             self.create_default_plan(user_id)
             return self.get_user_plan(user_id)
@@ -16,12 +14,12 @@ class PlanManager:
                 'monthly_goal_grammar': row[7], 'monthly_goal_phrases': row[8], 'custom_goal_words': row[9],
                 'custom_goal_grammar': row[10], 'custom_goal_phrases': row[11], 'custom_interval_days': row[12],
                 'current_streak': row[13], 'longest_streak': row[14], 'last_reset_date': row[15]}
-    
+
     def create_default_plan(self, user_id):
-        self.db.cursor.execute('INSERT INTO user_plans (user_id, plan_type, last_reset_date) VALUES (?, "daily", ?)',
-                               (user_id, datetime.now().strftime("%Y-%m-%d")))
-        self.db.conn.commit()
-    
+        self.db.execute_query(
+            'INSERT INTO user_plans (user_id, plan_type, last_reset_date) VALUES (?, "daily", ?)',
+            (user_id, datetime.now().strftime("%Y-%m-%d")), commit=True)
+
     def update_plan(self, user_id, plan_type, **kwargs):
         allowed = ['weekly_goal_words', 'weekly_goal_grammar', 'weekly_goal_phrases',
                    'monthly_goal_words', 'monthly_goal_grammar', 'monthly_goal_phrases',
@@ -34,11 +32,10 @@ class PlanManager:
                 values.append(value)
         if updates:
             query = f"UPDATE user_plans SET plan_type = ?, {', '.join(updates)} WHERE user_id = ?"
-            self.db.cursor.execute(query, [plan_type] + values + [user_id])
+            self.db.execute_query(query, [plan_type] + values + [user_id], commit=True)
         else:
-            self.db.cursor.execute("UPDATE user_plans SET plan_type = ? WHERE user_id = ?", (plan_type, user_id))
-        self.db.conn.commit()
-    
+            self.db.execute_query("UPDATE user_plans SET plan_type = ? WHERE user_id = ?", (plan_type, user_id), commit=True)
+
     def get_plan_progress(self, user_id, today_stats):
         plan = self.get_user_plan(user_id)
         if plan['plan_type'] == 'daily':
@@ -54,7 +51,7 @@ class PlanManager:
                 'words': {'current': today_stats.get('words', 0), 'goal': goal_words},
                 'grammar': {'current': today_stats.get('grammar', 0), 'goal': goal_grammar},
                 'phrases': {'current': today_stats.get('phrases', 0), 'goal': goal_phrases}}
-    
+
     def update_streak(self, user_id, today_learned):
         plan = self.get_user_plan(user_id)
         today = datetime.now().strftime("%Y-%m-%d")
@@ -73,13 +70,11 @@ class PlanManager:
         goal_achieved = avg_pct >= 0.8
         if goal_achieved and plan['last_reset_date'] != today:
             new_streak = plan['current_streak'] + 1
-            self.db.cursor.execute('UPDATE user_plans SET current_streak = ?, last_reset_date = ? WHERE user_id = ?',
-                                   (new_streak, today, user_id))
+            self.db.execute_query('UPDATE user_plans SET current_streak=?, last_reset_date=? WHERE user_id=?',
+                                  (new_streak, today, user_id), commit=True)
             if new_streak > plan['longest_streak']:
-                self.db.cursor.execute('UPDATE user_plans SET longest_streak = ? WHERE user_id = ?', (new_streak, user_id))
-            self.db.conn.commit()
+                self.db.execute_query('UPDATE user_plans SET longest_streak=? WHERE user_id=?', (new_streak, user_id), commit=True)
             return True, new_streak
         elif not goal_achieved and plan['last_reset_date'] != today:
-            self.db.cursor.execute('UPDATE user_plans SET current_streak = 0 WHERE user_id = ?', (user_id,))
-            self.db.conn.commit()
+            self.db.execute_query('UPDATE user_plans SET current_streak=0 WHERE user_id=?', (user_id,), commit=True)
         return goal_achieved, plan['current_streak']
