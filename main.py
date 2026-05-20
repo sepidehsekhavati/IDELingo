@@ -76,9 +76,25 @@ class IDELingoApp:
             )
 
         if self.init_backend():
-            self.show_login()
+            self.try_auto_login()
         else:
             self.show_error_page()
+
+    def try_auto_login(self):
+        """تلاش برای ورود خودکار با اطلاعات ذخیره شده"""
+        try:
+            stored = self.page.client_storage.get("idelingo_user")
+            if stored and isinstance(stored, dict):
+                user_id = stored.get("id")
+                if user_id:
+                    success = self.user_manager.login_by_id(user_id)
+                    if success:
+                        self.current_user = self.user_manager.current_user
+                        self.show_dashboard()
+                        return
+        except Exception as e:
+            print(f"Auto login error: {e}")
+        self.show_login()
 
     def _close_dialog(self, dialog):
         if dialog:
@@ -92,7 +108,7 @@ class IDELingoApp:
                 ft.Icon(ft.icons.ERROR_OUTLINE, size=80, color=COLORS['danger']),
                 ft.Text("Error", size=28, weight=ft.FontWeight.BOLD, color=COLORS['danger']),
                 ft.Text("Failed to initialize backend", size=16, color=COLORS['text_secondary']),
-                ft.ElevatedButton("Retry", on_click=lambda e: self.init_backend() and self.show_login(), bgcolor=COLORS['accent'])
+                ft.ElevatedButton("Retry", on_click=lambda e: self.init_backend() and self.try_auto_login(), bgcolor=COLORS['accent'])
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=20),
             alignment=ft.alignment.center, expand=True
         ))
@@ -122,6 +138,8 @@ class IDELingoApp:
             ok, msg, u = self.user_manager.login(user.value, pwd.value)
             if ok:
                 self.current_user = u
+                # ذخیره اطلاعات برای لاگین خودکار
+                self.page.client_storage.set("idelingo_user", {"id": u["id"], "username": u["username"]})
                 self.show_dashboard()
             else:
                 err.value = msg
@@ -265,13 +283,11 @@ class IDELingoApp:
     def show_vocabulary(self):
         self.page.clean()
         self.current_index = 1
-        # هدر: عنوان در وسط، آیکون سرچ در راست
         header = ft.Container(content=ft.Row([
             ft.Text("📝 Vocabulary Manager", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent'], expand=True, text_align=ft.TextAlign.CENTER),
             ft.IconButton(icon=ft.icons.SEARCH, icon_color=COLORS['accent'], icon_size=24, on_click=lambda e: self.show_search_dialog("vocabulary"))
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), padding=ft.padding.all(20))
         add_btn = ft.ElevatedButton(content=ft.Row([ft.Icon(ft.icons.ADD), ft.Text("Add New Word")], spacing=10), on_click=lambda e: self.add_vocabulary_dialog(), bgcolor=COLORS['success'], color=COLORS['bg'])
-        # فقط فیلتر difficulty (زبان حذف شد)
         self.vocab_diff = ft.Dropdown(options=[ft.dropdown.Option("All"), ft.dropdown.Option("easy"), ft.dropdown.Option("medium"), ft.dropdown.Option("hard")], value="All", width=100, bgcolor=COLORS['bg'], color=COLORS['text'])
         self.vocab_diff.on_change = self.refresh_vocab
         self.vocab_container = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
@@ -324,7 +340,6 @@ class IDELingoApp:
         wf = ft.TextField(label="Word", width=300)
         mf = ft.TextField(label="Meaning", width=300, multiline=True, min_lines=2)
         exf = ft.TextField(label="Example (optional)", width=300)
-        # حذف dropdown زبان
         diff = ft.Dropdown(options=[ft.dropdown.Option("easy"), ft.dropdown.Option("medium"), ft.dropdown.Option("hard")], value="medium", width=300)
         dict_res = ft.Text("", size=12)
         def search_dict(e):
@@ -363,11 +378,6 @@ class IDELingoApp:
         self.page.update()
 
     # ========== Grammar ==========
-        # ========== Grammar (نسخه تست شده با قابلیت ویرایش یادداشت) ==========
-        # ========== Grammar ==========
-        # ========== Grammar ==========
-        # ========== Grammar (بازنویسی کامل) ==========
-        # ========== Grammar ==========
     def show_grammar(self):
         self.page.clean()
         self.current_index = 2
@@ -417,7 +427,6 @@ class IDELingoApp:
         is_fav = self.user_manager.is_grammar_favorite(topic_key)
         notes = self.user_manager.get_grammar_notes(topic_key)
 
-        # بخش نمایش یادداشت‌ها
         notes_list = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, height=250)
 
         def refresh_notes():
@@ -426,8 +435,6 @@ class IDELingoApp:
                 timestamp = n['timestamp']
                 text = n['note']
                 display_text = ft.Text(text, size=12, color=COLORS['text_secondary'], selectable=True)
-                
-                # کادر هر یادداشت
                 note_card = ft.Card(
                     content=ft.Container(
                         content=ft.Column([
@@ -517,7 +524,6 @@ class IDELingoApp:
         def save_edit(e):
             new_text = edit_field.value
             if new_text and new_text != old_text:
-                # حذف یادداشت قدیمی و اضافه جدید
                 notes_list = self.user_manager.get_grammar_notes(topic_key)
                 for i, n in enumerate(notes_list):
                     if n['timestamp'] == timestamp and n['note'] == old_text:
@@ -567,7 +573,6 @@ class IDELingoApp:
     def show_phrases(self):
         self.page.clean()
         self.current_index = 4
-        # هدر مشابه Vocabulary
         header = ft.Container(content=ft.Row([
             ft.Text("💬 My Phrase Library", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent'], expand=True, text_align=ft.TextAlign.CENTER),
             ft.IconButton(icon=ft.icons.SEARCH, icon_color=COLORS['accent'], icon_size=24, on_click=lambda e: self.show_search_dialog("phrases"))
@@ -639,7 +644,6 @@ class IDELingoApp:
             else:
                 corrected, feedback = txt, "✅ Message saved (auto-correct disabled)"
             self.user_manager.save_practice_message(self.current_user['id'], txt, corrected, feedback)
-            # XP حذف شد (دیگر add_xp فراخوانی نمی‌شود)
             if corrected != txt:
                 res.value = f"✨ Suggested: \"{corrected}\"\n\n💡 {feedback}"
                 res.color = COLORS['warning']
@@ -775,6 +779,7 @@ class IDELingoApp:
         def logout(e):
             def confirm(e):
                 self._close_dialog(confirm_dlg)
+                self.page.client_storage.remove("idelingo_user")   # پاک کردن اطلاعات ذخیره شده
                 self.current_user = None
                 self.show_login()
             confirm_dlg = ft.AlertDialog(title=ft.Text("Logout", color=COLORS['warning']), content=ft.Text("Are you sure you want to logout?"), actions=[ft.TextButton("Cancel", on_click=lambda e: self._close_dialog(confirm_dlg)), ft.ElevatedButton("Logout", on_click=confirm, bgcolor=COLORS['danger'])])
