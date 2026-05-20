@@ -364,6 +364,7 @@ class IDELingoApp:
 
     # ========== Grammar ==========
         # ========== Grammar (نسخه تست شده با قابلیت ویرایش یادداشت) ==========
+        # ========== Grammar ==========
     def show_grammar(self):
         self.page.clean()
         self.current_index = 2
@@ -416,7 +417,12 @@ class IDELingoApp:
 
             notes_col = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, height=250)
 
-            def rebuild_notes():
+            note_field = ft.TextField(hint_text="Write a new note...", multiline=True, min_lines=2, max_lines=3, width=300)
+
+            # تعریف dialog در ابتدا به عنوان None
+            dialog = None
+
+            def rebuild_notes(current_dialog):
                 notes_col.controls.clear()
                 for n in notes:
                     timestamp = n['timestamp']
@@ -429,7 +435,7 @@ class IDELingoApp:
                         edit.visible = True
                         card.update()
 
-                    def save_note(disp, edit, card, old_text, old_ts):
+                    def save_note(disp, edit, card, old_text, old_ts, dlg):
                         new_text = edit.value
                         if new_text != old_text:
                             notes_list = self.user_manager.get_grammar_notes(topic_key)
@@ -439,8 +445,9 @@ class IDELingoApp:
                                     break
                             self.user_manager.save_grammar_note(topic_key, new_text)
                             notes[:] = self.user_manager.get_grammar_notes(topic_key)
-                            rebuild_notes()
-                            dialog.update()
+                            rebuild_notes(dlg)
+                            if dlg:
+                                dlg.update()
                             self._show_snack("✅ Note updated!", COLORS['success'])
                         else:
                             disp.visible = True
@@ -455,7 +462,7 @@ class IDELingoApp:
                                 edit_field,
                                 ft.Row([
                                     ft.TextButton("✏️ Edit", on_click=lambda e, d=display_text, ed=edit_field, c=note_card: edit_mode(d, ed, c)),
-                                    ft.TextButton("💾 Save", on_click=lambda e, d=display_text, ed=edit_field, c=note_card, old=text, ts=timestamp: save_note(d, ed, c, old, ts))
+                                    ft.TextButton("💾 Save", on_click=lambda e, d=display_text, ed=edit_field, c=note_card, old=text, ts=timestamp, dlg=current_dialog: save_note(d, ed, c, old, ts, dlg))
                                 ], alignment=ft.MainAxisAlignment.END)
                             ], spacing=5),
                             padding=10
@@ -473,18 +480,15 @@ class IDELingoApp:
                             alignment=ft.alignment.center
                         )
                     )
-                dialog.update()
-
-            rebuild_notes()
-
-            note_field = ft.TextField(hint_text="Write a new note...", multiline=True, min_lines=2, max_lines=3, width=300)
 
             def add_note(e):
                 if note_field.value:
                     self.user_manager.save_grammar_note(topic_key, note_field.value)
                     note_field.value = ""
                     notes[:] = self.user_manager.get_grammar_notes(topic_key)
-                    rebuild_notes()
+                    if dialog:
+                        rebuild_notes(dialog)
+                        dialog.update()
                     self._show_snack("✅ Note added!", COLORS['success'])
 
             def toggle_fav(e):
@@ -499,7 +503,8 @@ class IDELingoApp:
                     is_fav = True
                     fav_btn.icon = ft.icons.FAVORITE
                     fav_btn.icon_color = COLORS['danger']
-                dialog.update()
+                if dialog:
+                    dialog.update()
                 self.show_grammar()  # رفرش لیست گرامر
 
             fav_btn = ft.IconButton(icon=ft.icons.FAVORITE if is_fav else ft.icons.FAVORITE_BORDER,
@@ -529,13 +534,17 @@ class IDELingoApp:
                 content=ft.Container(content=content, padding=15, width=400, height=600),
                 actions=[ft.TextButton("Close", on_click=lambda e: self._close_dialog(dialog))]
             )
+            
+            # ساخته شدن dialog پس از ایجاد، rebuild_notes را با dialog واقعی صدا بزن
+            rebuild_notes(dialog)
+            
             self.page.dialog = dialog
             dialog.open = True
             self.page.update()
             
         except Exception as ex:
             self._show_snack(f"Error: {ex}", COLORS['danger'])
-            print(f"Error opening grammar: {ex}")  
+            print(f"Error opening grammar: {ex}") 
 
     # ========== Phrases ==========
     def show_phrases(self):
