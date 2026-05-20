@@ -362,7 +362,7 @@ class IDELingoApp:
         dlg.open = True
         self.page.update()
 
-        # ========== Grammar (نسخه ساده و تست شده) ==========
+    # ========== Grammar ==========
     def show_grammar(self):
         self.page.clean()
         self.current_index = 2
@@ -402,7 +402,7 @@ class IDELingoApp:
         ], spacing=10, expand=True))
         filter_grammar(None)
 
-        def open_grammar_topic(self, topic_key):
+    def open_grammar_topic(self, topic_key):
         info = self.user_manager.get_grammar_info(topic_key)
         if not info:
             return
@@ -536,7 +536,7 @@ class IDELingoApp:
         )
         self.page.dialog = dialog
         dialog.open = True
-        self.page.update()
+        self.page.update()   
 
     # ========== Phrases ==========
     def show_phrases(self):
