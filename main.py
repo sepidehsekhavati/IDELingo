@@ -367,106 +367,45 @@ class IDELingoApp:
         # ========== Grammar ==========
         # ========== Grammar ==========
         # ========== Grammar (بازنویسی کامل) ==========
+        # ========== Grammar ==========
     def show_grammar(self):
         self.page.clean()
         self.current_index = 2
-        
-        # حالت نمایش: True = فقط favorites، False = همه قوانین
-        self.grammar_fav_only = True
-        self.all_topics = self.user_manager.get_all_grammar_topics()
-        
-        # ویجت جستجو
-        self.grammar_search = ft.TextField(
-            hint_text="Search grammar rules...", 
-            prefix_icon=ft.icons.SEARCH, 
-            expand=True, 
-            height=45,
-            border_color=COLORS['text_muted'], 
-            focused_border_color=COLORS['accent'], 
-            color=COLORS['text']
-        )
-        
-        # کانتینر لیست گرامرها
-        self.grammar_container = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
-        
-        # تابع رفرش لیست
-        def refresh_grammar(e=None):
-            self.grammar_container.controls.clear()
-            query = self.grammar_search.value.strip().lower() if self.grammar_search.value else ""
-            
-            if query:
-                # جستجو در همه قوانین (بدون در نظر گرفتن favorites)
-                filtered = [t for t in self.all_topics if query in t.lower()]
-            else:
-                # بدون جستجو: فقط favorites نمایش داده شوند
-                if self.grammar_fav_only:
-                    favs = self.user_manager.get_grammar_favorites()
-                    filtered = [fav['key'] for fav in favs]
-                else:
-                    filtered = self.all_topics
-            
-            for topic in filtered[:30]:
-                info = self.user_manager.get_grammar_info(topic)
-                title = info.get('title', topic.replace('_', ' ').title()) if info else topic.replace('_', ' ').title()
+        topics = self.user_manager.get_all_grammar_topics()
+        search = ft.TextField(hint_text="Search grammar rules...", prefix_icon=ft.icons.SEARCH, expand=True, height=45,
+                              border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'])
+        grammar_content = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
+
+        def filter_grammar(e):
+            q = search.value.lower() if search.value else ""
+            grammar_content.controls.clear()
+            filtered = [t for t in topics if q in t.lower()] if q else topics
+            for t in filtered[:30]:
+                info = self.user_manager.get_grammar_info(t)
+                title = info.get('title', t.replace('_', ' ').title()) if info else t.replace('_', ' ').title()
                 level = info.get('level', 'beginner') if info else 'beginner'
                 level_icon = "🔰" if level == 'beginner' else "📘" if level == 'intermediate' else "🎓"
-                is_fav = self.user_manager.is_grammar_favorite(topic)
+                is_fav = self.user_manager.is_grammar_favorite(t)
                 fav_icon = "❤️" if is_fav else "🤍"
-                
                 btn = ft.Container(
-                    content=ft.Row([
-                        ft.Text(f"{level_icon} {fav_icon}", size=14),
-                        ft.Text(title, size=14, color=COLORS['text'], expand=True),
-                        ft.Icon(ft.icons.CHEVRON_RIGHT, color=COLORS['text_muted'], size=18)
-                    ]),
-                    bgcolor=COLORS['card'], 
-                    border_radius=8, 
-                    padding=12,
-                    on_click=lambda _, t=topic: self.open_grammar_topic(t)
+                    content=ft.Row([ft.Text(f"{level_icon} {fav_icon}", size=14), ft.Text(title, size=14, color=COLORS['text'], expand=True), ft.Icon(ft.icons.CHEVRON_RIGHT, color=COLORS['text_muted'], size=18)]),
+                    bgcolor=COLORS['card'], border_radius=8, padding=12,
+                    on_click=lambda _, tt=t: self.open_grammar_topic(tt)
                 )
-                self.grammar_container.controls.append(btn)
-            
+                grammar_content.controls.append(btn)
             if not filtered:
-                if query:
-                    msg = "No grammar rules found."
-                else:
-                    msg = "No favorites yet. 🔍 Search and ❤️ like some rules!"
-                self.grammar_container.controls.append(
-                    ft.Container(
-                        content=ft.Text(msg, color=COLORS['text_secondary'], size=14, text_align=ft.TextAlign.CENTER),
-                        padding=40
-                    )
-                )
+                grammar_content.controls.append(ft.Container(content=ft.Text("No grammar rules found.", color=COLORS['text_secondary']), padding=40))
             self.page.update()
-        
-        self.grammar_search.on_change = refresh_grammar
-        
-        # دکمه toggle بین نمایش favorites و همه قوانین
-        toggle_btn = ft.ToggleButton(
-            icon=ft.icons.FAVORITE, 
-            selected=True,
-            on_change=lambda e: setattr(self, 'grammar_fav_only', not self.grammar_fav_only) or refresh_grammar(),
-            tooltip="Show only favorites"
-        )
-        
-        header = ft.Row([
-            ft.Text("📖 Grammar Library", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent'], expand=True),
-            toggle_btn
-        ])
-        
-        # آمار favorites
-        fav_count = len(self.user_manager.get_grammar_favorites())
-        stats_text = ft.Text(f"⭐ Favorites: {fav_count}", size=13, color=COLORS['text_secondary'])
-        
+
+        search.on_change = filter_grammar
         self.page.add(ft.Column([
-            ft.Container(content=header, padding=20),
-            ft.Container(content=stats_text, padding=ft.padding.symmetric(horizontal=20)),
-            ft.Container(content=self.grammar_search, padding=20),
-            ft.Container(content=self.grammar_container, expand=True, padding=ft.padding.symmetric(horizontal=20)),
+            ft.Container(content=ft.Text("📖 Grammar Library", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent']), padding=20),
+            ft.Container(content=ft.Text(f"📚 Total Rules: {len(topics)}", size=13, color=COLORS['text_secondary']), padding=ft.padding.symmetric(horizontal=20)),
+            ft.Container(content=search, padding=20),
+            ft.Container(content=grammar_content, expand=True, padding=ft.padding.symmetric(horizontal=20)),
             self._bottom_nav_bar()
         ], spacing=10, expand=True))
-        
-        refresh_grammar()
+        filter_grammar(None)
 
     def open_grammar_topic(self, topic_key):
         info = self.user_manager.get_grammar_info(topic_key)
@@ -488,6 +427,7 @@ class IDELingoApp:
                 text = n['note']
                 display_text = ft.Text(text, size=12, color=COLORS['text_secondary'], selectable=True)
                 
+                # کادر هر یادداشت
                 note_card = ft.Card(
                     content=ft.Container(
                         content=ft.Column([
@@ -512,9 +452,6 @@ class IDELingoApp:
                         alignment=ft.alignment.center
                     )
                 )
-            # به‌روزرسانی دیالوگ (اگر وجود داشته باشد)
-            if hasattr(self, '_current_grammar_dialog') and self._current_grammar_dialog:
-                self._current_grammar_dialog.update()
 
         refresh_notes()
 
@@ -526,6 +463,7 @@ class IDELingoApp:
                 note_field.value = ""
                 notes[:] = self.user_manager.get_grammar_notes(topic_key)
                 refresh_notes()
+                dialog.update()
                 self._show_snack("✅ Note added!", COLORS['success'])
 
         def toggle_fav(e):
@@ -540,17 +478,11 @@ class IDELingoApp:
                 is_fav = True
                 fav_btn.icon = ft.icons.FAVORITE
                 fav_btn.icon_color = COLORS['danger']
-            # به‌روزرسانی دیالوگ
-            if hasattr(self, '_current_grammar_dialog') and self._current_grammar_dialog:
-                self._current_grammar_dialog.update()
-            # رفرش صفحه گرامر برای به‌روزرسانی لیست
+            dialog.update()
             self.show_grammar()
 
-        fav_btn = ft.IconButton(
-            icon=ft.icons.FAVORITE if is_fav else ft.icons.FAVORITE_BORDER,
-            icon_color=COLORS['danger'] if is_fav else COLORS['text_secondary'],
-            on_click=toggle_fav
-        )
+        fav_btn = ft.IconButton(icon=ft.icons.FAVORITE if is_fav else ft.icons.FAVORITE_BORDER,
+                                icon_color=COLORS['danger'] if is_fav else COLORS['text_secondary'], on_click=toggle_fav)
 
         content = ft.Column([
             ft.Text("📐 Structure", weight=ft.FontWeight.BOLD, color=COLORS['accent']),
@@ -574,19 +506,11 @@ class IDELingoApp:
         dialog = ft.AlertDialog(
             title=ft.Row([ft.Text(f"{level_icon} ", size=14), ft.Text(info.get('title', topic_key), color=COLORS['accent'], expand=True), fav_btn]),
             content=ft.Container(content=content, padding=15, width=400, height=600),
-            actions=[ft.TextButton("Close", on_click=lambda e: self._close_grammar_dialog())]
+            actions=[ft.TextButton("Close", on_click=lambda e: self._close_dialog(dialog))]
         )
-        
-        self._current_grammar_dialog = dialog
         self.page.dialog = dialog
         dialog.open = True
         self.page.update()
-
-    def _close_grammar_dialog(self):
-        if hasattr(self, '_current_grammar_dialog') and self._current_grammar_dialog:
-            self._current_grammar_dialog.open = False
-            self._current_grammar_dialog = None
-            self.page.update()
 
     def _edit_note_dialog(self, topic_key, old_text, timestamp, refresh_callback):
         edit_field = ft.TextField(value=old_text, multiline=True, min_lines=3, max_lines=5, width=350)
