@@ -32,6 +32,8 @@ class IDELingoApp:
             return True
         except Exception as e:
             print(f"Backend error: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def main(self, page: ft.Page):
@@ -45,6 +47,7 @@ class IDELingoApp:
         page.bgcolor = COLORS['bg']
         page.theme = ft.Theme(color_scheme_seed=COLORS['accent'], use_material3=True)
 
+        # AppBar
         if os.path.exists(LOGO_PATH):
             try:
                 page.appbar = ft.AppBar(
@@ -65,16 +68,20 @@ class IDELingoApp:
             self.show_error_page()
 
     def try_auto_login(self):
+        """تلاش برای ورود خودکار"""
         try:
             stored = self.page.client_storage.get("idelingo_user")
             if stored and isinstance(stored, dict):
                 user_id = stored.get("id")
-                if user_id and self.user_manager.login_by_id(user_id):
-                    self.current_user = self.user_manager.current_user
-                    self.show_dashboard()
-                    return
+                if user_id:
+                    if self.user_manager.login_by_id(user_id):
+                        self.current_user = self.user_manager.current_user
+                        self.show_dashboard()
+                        return
         except Exception as e:
             print(f"Auto login error: {e}")
+            import traceback
+            traceback.print_exc()
         self.show_login()
 
     def _close_dialog(self, dialog):
@@ -102,13 +109,17 @@ class IDELingoApp:
             try:
                 logo = ft.Container(content=ft.Image(src=LOGO_PATH, width=200, height=200, fit=ft.ImageFit.CONTAIN), margin=ft.margin.only(top=30, bottom=10))
             except:
-                logo = ft.Container(content=ft.Column([ft.Icon(ft.icons.SCHOOL, size=80, color=COLORS['accent']),
+                logo = ft.Container(content=ft.Column([
+                    ft.Icon(ft.icons.SCHOOL, size=80, color=COLORS['accent']),
                     ft.Text("IDELingo", size=32, weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-                    ft.Text("Learn English Smarter", size=14, color=COLORS['text_secondary'])], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10), margin=ft.margin.only(top=50, bottom=30))
+                    ft.Text("Learn English Smarter", size=14, color=COLORS['text_secondary'])
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10), margin=ft.margin.only(top=50, bottom=30))
         else:
-            logo = ft.Container(content=ft.Column([ft.Icon(ft.icons.SCHOOL, size=80, color=COLORS['accent']),
+            logo = ft.Container(content=ft.Column([
+                ft.Icon(ft.icons.SCHOOL, size=80, color=COLORS['accent']),
                 ft.Text("IDELingo", size=32, weight=ft.FontWeight.BOLD, color=COLORS['accent']),
-                ft.Text("Learn English Smarter", size=14, color=COLORS['text_secondary'])], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10), margin=ft.margin.only(top=50, bottom=30))
+                ft.Text("Learn English Smarter", size=14, color=COLORS['text_secondary'])
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10), margin=ft.margin.only(top=50, bottom=30))
 
         user = ft.TextField(label="Username or Email", prefix_icon=ft.icons.PERSON, border_color=COLORS['text_muted'],
             focused_border_color=COLORS['accent'], color=COLORS['text'], width=300, height=50)
@@ -135,8 +146,11 @@ class IDELingoApp:
         self.page.add(ft.Container(
             content=ft.Column([
                 logo,
-                ft.Container(content=ft.Column([user, pwd, err, ft.ElevatedButton("Login", on_click=do_login, bgcolor=COLORS['accent'], color=COLORS['bg'], width=300, height=45),
-                    ft.TextButton("Create New Account", on_click=lambda e: self.show_register(), style=ft.ButtonStyle(color=COLORS['accent']))], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15), alignment=ft.alignment.center)
+                ft.Container(content=ft.Column([
+                    user, pwd, err,
+                    ft.ElevatedButton("Login", on_click=do_login, bgcolor=COLORS['accent'], color=COLORS['bg'], width=300, height=45),
+                    ft.TextButton("Create New Account", on_click=lambda e: self.show_register(), style=ft.ButtonStyle(color=COLORS['accent']))
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15), alignment=ft.alignment.center)
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20, scroll=ft.ScrollMode.AUTO),
             expand=True
         ))
@@ -183,8 +197,11 @@ class IDELingoApp:
         self.page.add(ft.Container(
             content=ft.Column([
                 logo,
-                ft.Container(content=ft.Column([user, email, pwd, err, ft.ElevatedButton("Sign Up", on_click=do_reg, bgcolor=COLORS['success'], color=COLORS['bg'], width=300, height=45),
-                    ft.TextButton("Back to Login", on_click=lambda e: self.show_login(), style=ft.ButtonStyle(color=COLORS['accent']))], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15), alignment=ft.alignment.center)
+                ft.Container(content=ft.Column([
+                    user, email, pwd, err,
+                    ft.ElevatedButton("Sign Up", on_click=do_reg, bgcolor=COLORS['success'], color=COLORS['bg'], width=300, height=45),
+                    ft.TextButton("Back to Login", on_click=lambda e: self.show_login(), style=ft.ButtonStyle(color=COLORS['accent']))
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15), alignment=ft.alignment.center)
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20),
             expand=True
         ))
@@ -193,10 +210,18 @@ class IDELingoApp:
     def show_dashboard(self):
         self.page.clean()
         self.current_index = 0
-        prog = self.user_manager.get_daily_progress(self.current_user['id'])
-        hour = datetime.now().hour
-        greet = "Good Evening" if hour > 18 else "Good Afternoon" if hour > 12 else "Good Morning"
-        phrases_cnt = self.user_manager.db.execute_query("SELECT COUNT(*) FROM phrases WHERE user_id=?", (self.current_user['id'],), fetchone=True)[0]
+        try:
+            prog = self.user_manager.get_daily_progress(self.current_user['id'])
+            hour = datetime.now().hour
+            greet = "Good Evening" if hour > 18 else "Good Afternoon" if hour > 12 else "Good Morning"
+            phrases_cnt = self.user_manager.db.execute_query("SELECT COUNT(*) FROM phrases WHERE user_id=?", (self.current_user['id'],), fetchone=True)[0]
+        except Exception as e:
+            print(f"Dashboard init error: {e}")
+            import traceback
+            traceback.print_exc()
+            self.page.add(ft.Text(f"Error: {e}", color=COLORS['danger']))
+            self.page.update()
+            return
 
         def nav_words(e): self.nav_change(1)
         def nav_gram(e): self.nav_change(2)
@@ -217,8 +242,10 @@ class IDELingoApp:
         quick = self._quick_add_section()
         nav = self._bottom_nav_bar()
         self.page.add(ft.Column([
-            ft.Container(content=ft.Column([ft.Text(f"{greet}, {self.current_user['username']}! 👋", size=22, weight=ft.FontWeight.BOLD, color=COLORS['text']),
-                ft.Text(datetime.now().strftime("%A, %B %d, %Y"), size=12, color=COLORS['text_secondary'])], spacing=5), padding=ft.padding.all(20)),
+            ft.Container(content=ft.Column([
+                ft.Text(f"{greet}, {self.current_user['username']}! 👋", size=22, weight=ft.FontWeight.BOLD, color=COLORS['text']),
+                ft.Text(datetime.now().strftime("%A, %B %d, %Y"), size=12, color=COLORS['text_secondary'])
+            ], spacing=5), padding=ft.padding.all(20)),
             ft.Container(content=ft.Column([row1, row2], spacing=10), padding=ft.padding.symmetric(horizontal=20)),
             quick,
             ft.Container(expand=True),
@@ -229,7 +256,8 @@ class IDELingoApp:
     def _stat_card(self, icon, value, subtitle, label, on_click):
         card = ft.Container(
             content=ft.Column([
-                ft.Text(icon, size=24), ft.Text(value, size=18, weight=ft.FontWeight.BOLD, color=COLORS['accent']),
+                ft.Text(icon, size=24),
+                ft.Text(value, size=18, weight=ft.FontWeight.BOLD, color=COLORS['accent']),
                 ft.Text(subtitle, size=10, color=COLORS['text_muted']) if subtitle else ft.Container(),
                 ft.Text(label, size=10, color=COLORS['text_secondary'])
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=3),
@@ -272,9 +300,130 @@ class IDELingoApp:
             icon_color=COLORS['accent'] if self.current_index==index else COLORS['text_muted'],
             on_click=lambda e, i=index: self.nav_change(i), tooltip=label)
 
-    # ---------- بقیه متدها (Vocabulary, Grammar, Phrases, Practice, Community, Leaderboard, Settings) ----------
-    # لطفاً سایر متدها را از فایل قبلی خود کپی کنید (همان‌هایی که قبلاً کار می‌کردند).
-    # برای اختصار، فقط متدهای ضروری آورده شده است.
+    # ========== Vocabulary (ساده شده برای تست) ==========
+    def show_vocabulary(self):
+        self.page.clean()
+        self.current_index = 1
+        self.page.add(ft.Text("Vocabulary Page - Coming Soon", size=24, color=COLORS['accent']))
+        self.page.add(self._bottom_nav_bar())
+        self.page.update()
+
+    # ========== Grammar (ساده شده برای تست) ==========
+    def show_grammar(self):
+        self.page.clean()
+        self.current_index = 2
+        self.page.add(ft.Text("Grammar Page - Coming Soon", size=24, color=COLORS['accent']))
+        self.page.add(self._bottom_nav_bar())
+        self.page.update()
+
+    # ========== Phrases (ساده شده برای تست) ==========
+    def show_phrases(self):
+        self.page.clean()
+        self.current_index = 4
+        self.page.add(ft.Text("Phrases Page - Coming Soon", size=24, color=COLORS['accent']))
+        self.page.add(self._bottom_nav_bar())
+        self.page.update()
+
+    # ========== Practice (ساده شده برای تست) ==========
+    def show_practice(self):
+        self.page.clean()
+        self.current_index = 3
+        self.page.add(ft.Text("Practice Page - Coming Soon", size=24, color=COLORS['accent']))
+        self.page.add(self._bottom_nav_bar())
+        self.page.update()
+
+    # ========== Community (ساده شده برای تست) ==========
+    def show_community(self):
+        self.page.clean()
+        self.current_index = 5
+        self.page.add(ft.Text("Community Page - Coming Soon", size=24, color=COLORS['accent']))
+        self.page.add(self._bottom_nav_bar())
+        self.page.update()
+
+    # ========== Leaderboard (ساده شده برای تست) ==========
+    def show_leaderboard(self):
+        self.page.clean()
+        self.current_index = 6
+        self.page.add(ft.Text("Leaderboard Page - Coming Soon", size=24, color=COLORS['accent']))
+        self.page.add(self._bottom_nav_bar())
+        self.page.update()
+
+    # ========== Settings ==========
+    def show_settings(self):
+        self.page.clean()
+        self.current_index = 7
+        
+        goal_dd = ft.Dropdown(label="Daily Learning Goal", options=[ft.dropdown.Option(str(i)) for i in [5,10,15,20,25,30]],
+            value=str(self.current_user['daily_goal']), width=200)
+        def update_goal(e):
+            self.user_manager.update_profile(self.current_user['id'], daily_goal=int(goal_dd.value))
+            self.current_user['daily_goal'] = int(goal_dd.value)
+            self._show_snack("✅ Goal updated!", COLORS['success'])
+        
+        avatars = ["😊","😎","🤓","👨‍🎓","👩‍🎓","🐱","🐶","🦊","🐼","⭐"]
+        avatar_row = ft.Row([ft.Container(content=ft.Text(a, size=32), bgcolor=COLORS['card'] if a==self.current_user['avatar'] else COLORS['bg'],
+            border_radius=10, padding=10, on_click=lambda _, av=a: self._update_avatar(av)) for a in avatars], spacing=10, wrap=True)
+        
+        def logout(e):
+            def confirm(e):
+                self._close_dialog(confirm_dlg)
+                self.page.client_storage.remove("idelingo_user")
+                self.current_user = None
+                self.show_login()
+            confirm_dlg = ft.AlertDialog(title=ft.Text("Logout", color=COLORS['warning']), content=ft.Text("Are you sure you want to logout?"),
+                actions=[ft.TextButton("Cancel", on_click=lambda e: self._close_dialog(confirm_dlg)),
+                         ft.ElevatedButton("Logout", on_click=confirm, bgcolor=COLORS['danger'])])
+            self.page.dialog = confirm_dlg
+            confirm_dlg.open = True
+            self.page.update()
+        
+        tabs = ft.Tabs(selected_index=0, tabs=[
+            ft.Tab(text="⚙️ General", content=ft.Container(content=ft.Column([
+                ft.Text("Daily Learning Goal", size=14, weight=ft.FontWeight.BOLD),
+                goal_dd, ft.ElevatedButton("Update Goal", on_click=update_goal, bgcolor=COLORS['info']),
+                ft.Divider(), ft.Text("Avatar", size=14, weight=ft.FontWeight.BOLD), avatar_row
+            ], spacing=15, scroll=ft.ScrollMode.AUTO), padding=20, expand=True)),
+            ft.Tab(text="🔒 Privacy", content=ft.Container(content=ft.Column([
+                ft.ElevatedButton("Logout", on_click=logout, bgcolor=COLORS['danger'])
+            ], spacing=15, scroll=ft.ScrollMode.AUTO), padding=20, expand=True))
+        ], expand=True)
+        
+        self.page.add(ft.Column([
+            ft.Container(content=ft.Text("⚙️ Settings", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent']), padding=20),
+            ft.Container(content=tabs, expand=True),
+            self._bottom_nav_bar()
+        ], spacing=10, expand=True))
+        self.page.update()
+
+    def _update_avatar(self, new_avatar):
+        self.user_manager.update_profile(self.current_user['id'], avatar=new_avatar)
+        self.current_user['avatar'] = new_avatar
+        self._show_snack("✅ Avatar updated!", COLORS['success'])
+        self.show_settings()
+
+    def show_profile(self, e):
+        wcnt = self.user_manager.db.execute_query("SELECT COUNT(*) FROM vocabulary WHERE user_id=?", (self.current_user['id'],), fetchone=True)[0]
+        pcnt = self.user_manager.db.execute_query("SELECT COUNT(*) FROM phrases WHERE user_id=?", (self.current_user['id'],), fetchone=True)[0]
+        favcnt = len(self.user_manager.get_grammar_favorites())
+        dlg = ft.AlertDialog(title=ft.Text("User Profile", color=COLORS['accent']), content=ft.Container(content=ft.Column([
+            ft.Container(content=ft.Text(self.current_user['avatar'], size=50), alignment=ft.alignment.center),
+            ft.Text(self.current_user['username'], size=20, weight=ft.FontWeight.BOLD, color=COLORS['text']),
+            ft.Text(self.current_user['email'], size=13, color=COLORS['text_secondary']),
+            ft.Divider(),
+            ft.Row([
+                ft.Column([ft.Text("⭐ Level", size=12), ft.Text(str(self.current_user['level']), size=18, weight=ft.FontWeight.BOLD, color=COLORS['accent'])], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True),
+                ft.Column([ft.Text("🔥 Streak", size=12), ft.Text(str(self.current_user['current_streak']), size=18, weight=ft.FontWeight.BOLD, color=COLORS['warning'])], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
+            ]),
+            ft.Divider(),
+            ft.Row([
+                ft.Column([ft.Text("📚 Words", size=12), ft.Text(str(wcnt), size=16, weight=ft.FontWeight.BOLD)], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True),
+                ft.Column([ft.Text("💬 Phrases", size=12), ft.Text(str(pcnt), size=16, weight=ft.FontWeight.BOLD)], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True),
+                ft.Column([ft.Text("⭐ Grammar", size=12), ft.Text(str(favcnt), size=16, weight=ft.FontWeight.BOLD)], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
+            ])
+        ], spacing=10), padding=20, width=380), actions=[ft.TextButton("Close", on_click=lambda e: self._close_dialog(dlg))])
+        self.page.dialog = dlg
+        dlg.open = True
+        self.page.update()
 
     def nav_change(self, index):
         self.current_index = index
