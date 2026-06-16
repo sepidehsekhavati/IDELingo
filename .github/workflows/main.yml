@@ -28,15 +28,23 @@ jobs:
           pip install --upgrade pip
           pip install flet==0.21.2
           
-      - name: Build APK with custom AndroidManifest
+      - name: Check AndroidManifest
         run: |
           if [ -f "android/AndroidManifest.xml" ]; then
-            echo "✅ Using custom AndroidManifest.xml"
-            flet build apk --android-manifest android/AndroidManifest.xml
+            echo "✅ Custom AndroidManifest.xml found"
+            cat android/AndroidManifest.xml
           else
-            echo "⚠️ Custom AndroidManifest not found, using default"
-            flet build apk
+            echo "⚠️ No custom AndroidManifest.xml found"
           fi
+          
+      - name: Build APK
+        run: |
+          # Flet به صورت خودکار android/AndroidManifest.xml رو پیدا میکنه
+          flet build apk
+          
+      - name: List build files
+        run: |
+          ls -la build/apk/ || echo "Build directory not found"
           
       - name: Upload APK
         uses: actions/upload-artifact@v4
