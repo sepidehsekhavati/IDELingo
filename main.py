@@ -107,6 +107,49 @@ class IDELingoApp:
         ))
         self.page.update()
 
+    # ========== نمایش حریم خصوصی ==========
+    def show_privacy_policy(self):
+        """نمایش متن حریم خصوصی"""
+        try:
+            # مسیر فایل HTML را پیدا کنید
+            assets_path = os.path.join(os.path.dirname(__file__), "assets")
+            html_path = os.path.join(assets_path, "privacy_policy.html")
+            
+            if os.path.exists(html_path):
+                with open(html_path, "r", encoding="utf-8") as f:
+                    html_content = f.read()
+            else:
+                html_content = "⚠️ متن حریم خصوصی در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید."
+        except Exception as e:
+            print(f"Error reading privacy policy: {e}")
+            html_content = "⚠️ خطا در بارگذاری متن حریم خصوصی."
+
+        # نمایش در یک دیالوگ
+        dialog = ft.AlertDialog(
+            title=ft.Text("🔒 حریم خصوصی", color=COLORS['accent']),
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Markdown(
+                        html_content,
+                        selectable=True,
+                        extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                        on_tap_link=lambda e: self.page.launch_url(e.data)
+                    )
+                ], scroll=ft.ScrollMode.AUTO, expand=True),
+                width=400,
+                height=550,
+                padding=10
+            ),
+            actions=[
+                ft.TextButton("بستن", on_click=lambda e: self._close_dialog(dialog))
+            ],
+            actions_alignment=ft.MainAxisAlignment.END
+        )
+        self.page.dialog = dialog
+        dialog.open = True
+        self.page.update()
+
+    # ========== صفحه ورود ==========
     def show_login(self):
         self.page.clean()
         logo = ft.Container()
@@ -154,13 +197,19 @@ class IDELingoApp:
                 ft.Container(content=ft.Column([
                     user, pwd, err,
                     ft.ElevatedButton("Login", on_click=do_login, bgcolor=COLORS['accent'], color=COLORS['bg'], width=300, height=45),
-                    ft.TextButton("Create New Account", on_click=lambda e: self.show_register(), style=ft.ButtonStyle(color=COLORS['accent']))
+                    ft.TextButton("Create New Account", on_click=lambda e: self.show_register(), style=ft.ButtonStyle(color=COLORS['accent'])),
+                    ft.TextButton(
+                        "🔒 حریم خصوصی",
+                        on_click=lambda e: self.show_privacy_policy(),
+                        style=ft.ButtonStyle(color=COLORS['text_secondary'], size=12)
+                    ),
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15), alignment=ft.alignment.center)
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20, scroll=ft.ScrollMode.AUTO),
             expand=True
         ))
         self.page.update()
 
+    # ========== صفحه ثبت‌نام ==========
     def show_register(self):
         self.page.clean()
         logo = ft.Container()
@@ -175,9 +224,35 @@ class IDELingoApp:
         user = ft.TextField(label="Username", prefix_icon=ft.icons.PERSON, color=COLORS['text'], width=300, height=50)
         email = ft.TextField(label="Email", prefix_icon=ft.icons.EMAIL, color=COLORS['text'], width=300, height=50)
         pwd = ft.TextField(label="Password (min 6 chars)", prefix_icon=ft.icons.LOCK, password=True, can_reveal_password=True, color=COLORS['text'], width=300, height=50)
+        
+        # چک‌باکس حریم خصوصی
+        privacy_check = ft.Checkbox(
+            label="",
+            value=False,
+            check_color=COLORS['accent'],
+            width=20
+        )
+        privacy_link = ft.TextButton(
+            "با قوانین حریم خصوصی موافقم",
+            on_click=lambda e: self.show_privacy_policy(),
+            style=ft.ButtonStyle(color=COLORS['accent'])
+        )
+        privacy_row = ft.Row(
+            [privacy_check, privacy_link],
+            spacing=5,
+            alignment=ft.MainAxisAlignment.CENTER
+        )
+        
         err = ft.Text("", color=COLORS['danger'], size=14, visible=False)
 
         def do_reg(e):
+            # بررسی تیک حریم خصوصی
+            if not privacy_check.value:
+                err.value = "لطفاً با قوانین حریم خصوصی موافقت کنید"
+                err.visible = True
+                self.page.update()
+                return
+                
             if not user.value or not email.value or not pwd.value:
                 err.value = "Please fill all fields"
                 err.visible = True
@@ -203,7 +278,7 @@ class IDELingoApp:
             content=ft.Column([
                 logo,
                 ft.Container(content=ft.Column([
-                    user, email, pwd, err,
+                    user, email, pwd, privacy_row, err,
                     ft.ElevatedButton("Sign Up", on_click=do_reg, bgcolor=COLORS['success'], color=COLORS['bg'], width=300, height=45),
                     ft.TextButton("Back to Login", on_click=lambda e: self.show_login(), style=ft.ButtonStyle(color=COLORS['accent']))
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15), alignment=ft.alignment.center)
@@ -212,6 +287,7 @@ class IDELingoApp:
         ))
         self.page.update()
 
+    # ========== داشبورد ==========
     def show_dashboard(self):
         self.page.clean()
         self.current_index = 0
@@ -882,7 +958,15 @@ class IDELingoApp:
                 ft.Text(f"🏆 Longest Streak: {plan.get('longest_streak',0)} days", size=13)
             ], spacing=15, scroll=ft.ScrollMode.AUTO), padding=20, expand=True)),
             ft.Tab(text="🔒 Privacy", content=ft.Container(content=ft.Column([
-                pub_cb, ft.Divider(),
+                pub_cb, 
+                ft.Divider(),
+                # اضافه کردن دکمه حریم خصوصی
+                ft.TextButton(
+                    "📋 مشاهده سیاست حفظ حریم خصوصی",
+                    on_click=lambda e: self.show_privacy_policy(),
+                    style=ft.ButtonStyle(color=COLORS['accent'])
+                ),
+                ft.Divider(),
                 ft.Text("Account Information", size=14, weight=ft.FontWeight.BOLD),
                 ft.Text(f"Username: {self.current_user['username']}", size=13),
                 ft.Text(f"Email: {self.current_user['email']}", size=13),
