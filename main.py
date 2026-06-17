@@ -109,36 +109,37 @@ class IDELingoApp:
 
     # ========== نمایش حریم خصوصی ==========
     def show_privacy_policy(self):
-        """نمایش متن حریم خصوصی"""
+        """نمایش متن حریم خصوصی - نسخه ساده با متن"""
         try:
-            # مسیر فایل HTML را پیدا کنید
             assets_path = os.path.join(os.path.dirname(__file__), "assets")
             html_path = os.path.join(assets_path, "privacy_policy.html")
             
             if os.path.exists(html_path):
                 with open(html_path, "r", encoding="utf-8") as f:
                     html_content = f.read()
+                # حذف تگ‌های HTML برای نمایش ساده
+                import re
+                text_content = re.sub(r'<[^>]+>', '', html_content)
+                text_content = re.sub(r'\n\s*\n', '\n\n', text_content)
+                text_content = text_content.strip()
+                # جایگزینی کاراکترهای خاص
+                text_content = text_content.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
             else:
-                html_content = "⚠️ متن حریم خصوصی در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید."
+                text_content = "⚠️ متن حریم خصوصی در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید."
         except Exception as e:
             print(f"Error reading privacy policy: {e}")
-            html_content = "⚠️ خطا در بارگذاری متن حریم خصوصی."
+            text_content = f"⚠️ خطا در بارگذاری متن حریم خصوصی: {str(e)}"
 
-        # نمایش در یک دیالوگ
+        # نمایش در یک دیالوگ با متن ساده
         dialog = ft.AlertDialog(
             title=ft.Text("🔒 حریم خصوصی", color=COLORS['accent']),
             content=ft.Container(
                 content=ft.Column([
-                    ft.Markdown(
-                        html_content,
-                        selectable=True,
-                        extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-                        on_tap_link=lambda e: self.page.launch_url(e.data)
-                    )
+                    ft.Text(text_content, selectable=True, size=13, color=COLORS['text_secondary'])
                 ], scroll=ft.ScrollMode.AUTO, expand=True),
                 width=400,
                 height=550,
-                padding=10
+                padding=15
             ),
             actions=[
                 ft.TextButton("بستن", on_click=lambda e: self._close_dialog(dialog))
