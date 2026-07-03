@@ -20,7 +20,7 @@ jobs:
       - name: Install Flet
         run: |
           pip install --upgrade pip
-          pip install --upgrade flet
+          pip install --upgrade "flet==0.28.3"
 
       - name: Build APK
         run: |
