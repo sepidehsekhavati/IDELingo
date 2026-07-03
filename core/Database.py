@@ -110,6 +110,10 @@ class Database:
             for col in ['tags', 'notes', 'error_count', 'last_reviewed']:
                 if col not in columns:
                     cursor.execute(f"ALTER TABLE vocabulary ADD COLUMN {col} TEXT")
+            cursor.execute("PRAGMA table_info(users)")
+            user_columns = [col[1] for col in cursor.fetchall()]
+            if 'cloud_sync_token' not in user_columns:
+                cursor.execute("ALTER TABLE users ADD COLUMN cloud_sync_token TEXT")
             cursor.execute('CREATE TABLE IF NOT EXISTS privacy_settings (user_id INTEGER PRIMARY KEY, profile_public BOOLEAN DEFAULT 1)')
             cursor.execute('INSERT OR IGNORE INTO privacy_settings (user_id, profile_public) SELECT id, 1 FROM users')
             conn.commit()
