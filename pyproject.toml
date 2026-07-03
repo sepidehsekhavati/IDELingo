@@ -1,0 +1,17 @@
+[project]
+name = "idelingo"
+version = "1.0.0"
+description = "IDELingo - Learn English Smarter"
+requires-python = ">=3.10"
+dependencies = [
+    "flet",
+    "requests"
+]
+
+[tool.flet.android.permission]
+"android.permission.INTERNET" = true
+"android.permission.WAKE_LOCK" = true
+"android.permission.RECORD_AUDIO" = false
+"android.permission.CAMERA" = false
+"android.permission.READ_EXTERNAL_STORAGE" = false
+"android.permission.WRITE_EXTERNAL_STORAGE" = false
