@@ -60,14 +60,14 @@ class IDELingoApp:
                 page.appbar = ft.AppBar(
                     title=ft.Image(src=LOGO_PATH, width=50, height=50, fit=ft.ImageFit.CONTAIN),
                     center_title=True, bgcolor=COLORS['sidebar'],
-                    actions=[ft.IconButton(icon=ft.icons.PERSON, icon_color=COLORS['text_secondary'], on_click=self.show_profile)]
+                    actions=[ft.IconButton(icon=ft.Icons.PERSON, icon_color=COLORS['text_secondary'], on_click=self.show_profile)]
                 )
             except:
                 page.appbar = ft.AppBar(title=ft.Text("", size=0), bgcolor=COLORS['sidebar'],
-                    actions=[ft.IconButton(icon=ft.icons.PERSON, icon_color=COLORS['text_secondary'], on_click=self.show_profile)])
+                    actions=[ft.IconButton(icon=ft.Icons.PERSON, icon_color=COLORS['text_secondary'], on_click=self.show_profile)])
         else:
             page.appbar = ft.AppBar(title=ft.Text("", size=0), bgcolor=COLORS['sidebar'],
-                actions=[ft.IconButton(icon=ft.icons.PERSON, icon_color=COLORS['text_secondary'], on_click=self.show_profile)])
+                actions=[ft.IconButton(icon=ft.Icons.PERSON, icon_color=COLORS['text_secondary'], on_click=self.show_profile)])
 
         if self.init_backend():
             self.try_auto_login()
@@ -98,7 +98,7 @@ class IDELingoApp:
         self.page.clean()
         self.page.add(ft.Container(
             content=ft.Column([
-                ft.Icon(ft.icons.ERROR_OUTLINE, size=80, color=COLORS['danger']),
+                ft.Icon(ft.Icons.ERROR_OUTLINE, size=80, color=COLORS['danger']),
                 ft.Text("Error", size=28, weight=ft.FontWeight.BOLD, color=COLORS['danger']),
                 ft.Text("Failed to initialize backend", size=16, color=COLORS['text_secondary']),
                 ft.ElevatedButton("Retry", on_click=lambda e: self.init_backend() and self.try_auto_login(), bgcolor=COLORS['accent'])
@@ -159,20 +159,20 @@ class IDELingoApp:
                 logo = ft.Container(content=ft.Image(src=LOGO_PATH, width=200, height=200, fit=ft.ImageFit.CONTAIN), margin=ft.margin.only(top=30, bottom=10))
             except:
                 logo = ft.Container(content=ft.Column([
-                    ft.Icon(ft.icons.SCHOOL, size=80, color=COLORS['accent']),
+                    ft.Icon(ft.Icons.SCHOOL, size=80, color=COLORS['accent']),
                     ft.Text("IDELingo", size=32, weight=ft.FontWeight.BOLD, color=COLORS['accent']),
                     ft.Text("Learn English Smarter", size=14, color=COLORS['text_secondary'])
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10), margin=ft.margin.only(top=50, bottom=30))
         else:
             logo = ft.Container(content=ft.Column([
-                ft.Icon(ft.icons.SCHOOL, size=80, color=COLORS['accent']),
+                ft.Icon(ft.Icons.SCHOOL, size=80, color=COLORS['accent']),
                 ft.Text("IDELingo", size=32, weight=ft.FontWeight.BOLD, color=COLORS['accent']),
                 ft.Text("Learn English Smarter", size=14, color=COLORS['text_secondary'])
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10), margin=ft.margin.only(top=50, bottom=30))
 
-        user = ft.TextField(label="Username or Email", prefix_icon=ft.icons.PERSON, border_color=COLORS['text_muted'],
+        user = ft.TextField(label="Username or Email", prefix_icon=ft.Icons.PERSON, border_color=COLORS['text_muted'],
             focused_border_color=COLORS['accent'], color=COLORS['text'], width=300, height=50)
-        pwd = ft.TextField(label="Password", prefix_icon=ft.icons.LOCK, password=True, can_reveal_password=True,
+        pwd = ft.TextField(label="Password", prefix_icon=ft.Icons.LOCK, password=True, can_reveal_password=True,
             border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'], width=300, height=50)
         err = ft.Text("", color=COLORS['danger'], size=14, visible=False)
 
@@ -222,9 +222,9 @@ class IDELingoApp:
         else:
             logo = ft.Container(content=ft.Text("IDELingo", size=28, weight=ft.FontWeight.BOLD, color=COLORS['accent']), margin=ft.margin.only(top=30, bottom=20))
 
-        user = ft.TextField(label="Username", prefix_icon=ft.icons.PERSON, color=COLORS['text'], width=300, height=50)
-        email = ft.TextField(label="Email", prefix_icon=ft.icons.EMAIL, color=COLORS['text'], width=300, height=50)
-        pwd = ft.TextField(label="Password (min 6 chars)", prefix_icon=ft.icons.LOCK, password=True, can_reveal_password=True, color=COLORS['text'], width=300, height=50)
+        user = ft.TextField(label="Username", prefix_icon=ft.Icons.PERSON, color=COLORS['text'], width=300, height=50)
+        email = ft.TextField(label="Email", prefix_icon=ft.Icons.EMAIL, color=COLORS['text'], width=300, height=50)
+        pwd = ft.TextField(label="Password (min 6 chars)", prefix_icon=ft.Icons.LOCK, password=True, can_reveal_password=True, color=COLORS['text'], width=300, height=50)
         
         # چک‌باکس حریم خصوصی
         privacy_check = ft.Checkbox(
@@ -353,7 +353,7 @@ class IDELingoApp:
             self.show_dashboard()
         return ft.Container(content=ft.Column([
             ft.Text("➕ Quick Add Word", size=16, weight=ft.FontWeight.BOLD, color=COLORS['text']),
-            ft.Row([wf, mf, ft.IconButton(icon=ft.icons.ADD_CIRCLE, icon_color=COLORS['success'], icon_size=40, on_click=add)], spacing=10)
+            ft.Row([wf, mf, ft.IconButton(icon=ft.Icons.ADD_CIRCLE, icon_color=COLORS['success'], icon_size=40, on_click=add)], spacing=10)
         ], spacing=10), bgcolor=COLORS['card'], border_radius=12, padding=15, margin=ft.margin.symmetric(horizontal=20))
 
     def _show_snack(self, msg, color):
@@ -362,9 +362,9 @@ class IDELingoApp:
         self.page.update()
 
     def _bottom_nav_bar(self):
-        items = [(ft.icons.HOME, "Home", 0), (ft.icons.BOOK, "Words", 1), (ft.icons.MENU_BOOK, "Grammar", 2),
-                 (ft.icons.CHAT, "Practice", 3), (ft.icons.FORMAT_QUOTE, "Phrases", 4), (ft.icons.PEOPLE, "Community", 5),
-                 (ft.icons.EMOJI_EVENTS, "Leaderboard", 6), (ft.icons.SETTINGS, "Settings", 7)]
+        items = [(ft.Icons.HOME, "Home", 0), (ft.Icons.BOOK, "Words", 1), (ft.Icons.MENU_BOOK, "Grammar", 2),
+                 (ft.Icons.CHAT, "Practice", 3), (ft.Icons.FORMAT_QUOTE, "Phrases", 4), (ft.Icons.PEOPLE, "Community", 5),
+                 (ft.Icons.EMOJI_EVENTS, "Leaderboard", 6), (ft.Icons.SETTINGS, "Settings", 7)]
         return ft.Container(content=ft.Row([self._nav_button(icon, label, idx) for icon, label, idx in items],
             alignment=ft.MainAxisAlignment.SPACE_AROUND), bgcolor=COLORS['sidebar'], padding=ft.padding.symmetric(vertical=8),
             border_radius=ft.border_radius.only(top_left=15, top_right=15))
@@ -380,9 +380,9 @@ class IDELingoApp:
         self.current_index = 1
         header = ft.Container(content=ft.Row([
             ft.Text("📝 Vocabulary Manager", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent'], expand=True, text_align=ft.TextAlign.CENTER),
-            ft.IconButton(icon=ft.icons.SEARCH, icon_color=COLORS['accent'], icon_size=24, on_click=lambda e: self.show_search_dialog("vocabulary"))
+            ft.IconButton(icon=ft.Icons.SEARCH, icon_color=COLORS['accent'], icon_size=24, on_click=lambda e: self.show_search_dialog("vocabulary"))
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), padding=ft.padding.all(20))
-        add_btn = ft.ElevatedButton(content=ft.Row([ft.Icon(ft.icons.ADD), ft.Text("Add New Word")], spacing=10), on_click=lambda e: self.add_vocabulary_dialog(), bgcolor=COLORS['success'], color=COLORS['bg'])
+        add_btn = ft.ElevatedButton(content=ft.Row([ft.Icon(ft.Icons.ADD), ft.Text("Add New Word")], spacing=10), on_click=lambda e: self.add_vocabulary_dialog(), bgcolor=COLORS['success'], color=COLORS['bg'])
         self.vocab_diff = ft.Dropdown(options=[ft.dropdown.Option("All"), ft.dropdown.Option("easy"), ft.dropdown.Option("medium"), ft.dropdown.Option("hard")], value="All", width=100, bgcolor=COLORS['bg'], color=COLORS['text'])
         self.vocab_diff.on_change = self.refresh_vocab
         self.vocab_container = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
@@ -404,7 +404,7 @@ class IDELingoApp:
                 card = ft.Container(
                     content=ft.Row([
                         ft.Column([ft.Row([ft.Text(w[2], size=16, weight=ft.FontWeight.BOLD, color=COLORS['accent']), ft.Text(diff_icon, size=12)], spacing=5), ft.GestureDetector(content=meaning_disp, on_tap=toggle(w[3], meaning_disp))], spacing=3, expand=True),
-                        ft.Column([ft.Text(f"🌐 English", size=11, color=COLORS['text_muted']), ft.Row([ft.IconButton(icon=ft.icons.EDIT, icon_size=18, icon_color=COLORS['info'], on_click=lambda _, ww=w: self.edit_word(ww)), ft.IconButton(icon=ft.icons.DELETE, icon_size=18, icon_color=COLORS['danger'], on_click=lambda _, wid=w[0]: self.delete_word(wid))], spacing=0)], horizontal_alignment=ft.CrossAxisAlignment.END)
+                        ft.Column([ft.Text(f"🌐 English", size=11, color=COLORS['text_muted']), ft.Row([ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=COLORS['info'], on_click=lambda _, ww=w: self.edit_word(ww)), ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, icon_color=COLORS['danger'], on_click=lambda _, wid=w[0]: self.delete_word(wid))], spacing=0)], horizontal_alignment=ft.CrossAxisAlignment.END)
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     bgcolor=COLORS['card'], border_radius=10, padding=12)
                 self.vocab_container.controls.append(card)
@@ -477,7 +477,7 @@ class IDELingoApp:
         self.page.clean()
         self.current_index = 2
         topics = self.user_manager.get_all_grammar_topics()
-        search = ft.TextField(hint_text="Search grammar rules...", prefix_icon=ft.icons.SEARCH, expand=True, height=45,
+        search = ft.TextField(hint_text="Search grammar rules...", prefix_icon=ft.Icons.SEARCH, expand=True, height=45,
                               border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'])
         grammar_content = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
@@ -493,7 +493,7 @@ class IDELingoApp:
                 is_fav = self.user_manager.is_grammar_favorite(t)
                 fav_icon = "❤️" if is_fav else "🤍"
                 btn = ft.Container(
-                    content=ft.Row([ft.Text(f"{level_icon} {fav_icon}", size=14), ft.Text(title, size=14, color=COLORS['text'], expand=True), ft.Icon(ft.icons.CHEVRON_RIGHT, color=COLORS['text_muted'], size=18)]),
+                    content=ft.Row([ft.Text(f"{level_icon} {fav_icon}", size=14), ft.Text(title, size=14, color=COLORS['text'], expand=True), ft.Icon(ft.Icons.CHEVRON_RIGHT, color=COLORS['text_muted'], size=18)]),
                     bgcolor=COLORS['card'], border_radius=8, padding=12,
                     on_click=lambda _, tt=t: self.open_grammar_topic(tt)
                 )
@@ -573,17 +573,17 @@ class IDELingoApp:
             if is_fav:
                 self.user_manager.remove_grammar_favorite(topic_key)
                 is_fav = False
-                fav_btn.icon = ft.icons.FAVORITE_BORDER
+                fav_btn.icon = ft.Icons.FAVORITE_BORDER
                 fav_btn.icon_color = COLORS['text_secondary']
             else:
                 self.user_manager.add_grammar_favorite(topic_key)
                 is_fav = True
-                fav_btn.icon = ft.icons.FAVORITE
+                fav_btn.icon = ft.Icons.FAVORITE
                 fav_btn.icon_color = COLORS['danger']
             dialog.update()
             self.show_grammar()
 
-        fav_btn = ft.IconButton(icon=ft.icons.FAVORITE if is_fav else ft.icons.FAVORITE_BORDER,
+        fav_btn = ft.IconButton(icon=ft.Icons.FAVORITE if is_fav else ft.Icons.FAVORITE_BORDER,
                                 icon_color=COLORS['danger'] if is_fav else COLORS['text_secondary'], on_click=toggle_fav)
 
         content = ft.Column([
@@ -670,9 +670,9 @@ class IDELingoApp:
         self.current_index = 4
         header = ft.Container(content=ft.Row([
             ft.Text("💬 My Phrase Library", size=24, weight=ft.FontWeight.BOLD, color=COLORS['accent'], expand=True, text_align=ft.TextAlign.CENTER),
-            ft.IconButton(icon=ft.icons.SEARCH, icon_color=COLORS['accent'], icon_size=24, on_click=lambda e: self.show_search_dialog("phrases"))
+            ft.IconButton(icon=ft.Icons.SEARCH, icon_color=COLORS['accent'], icon_size=24, on_click=lambda e: self.show_search_dialog("phrases"))
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), padding=20)
-        add_btn = ft.ElevatedButton(content=ft.Row([ft.Icon(ft.icons.ADD), ft.Text("Add New Phrase")], spacing=10), on_click=lambda e: self.add_phrase_dialog(), bgcolor=COLORS['success'], color=COLORS['bg'])
+        add_btn = ft.ElevatedButton(content=ft.Row([ft.Icon(ft.Icons.ADD), ft.Text("Add New Phrase")], spacing=10), on_click=lambda e: self.add_phrase_dialog(), bgcolor=COLORS['success'], color=COLORS['bg'])
         self.phrases_container = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
         self.page.add(ft.Column([header, ft.Container(content=add_btn, padding=ft.padding.symmetric(horizontal=20)), ft.Container(content=self.phrases_container, expand=True, padding=ft.padding.symmetric(horizontal=20)), self._bottom_nav_bar()], spacing=10, expand=True))
         self.refresh_phrases(None)
@@ -687,7 +687,7 @@ class IDELingoApp:
                 card = ft.Container(content=ft.Column([
                     ft.Row([ft.Text(f"{idx}.", size=12, color=COLORS['text_muted'], width=30), ft.Text(p[2][:60], size=14, weight=ft.FontWeight.BOLD, color=COLORS['accent'], expand=True)]),
                     ft.Text(f"📖 {p[3][:80]}", size=12, color=COLORS['text_secondary']),
-                    ft.Row([ft.Text(f"🏷️ {p[4]}" if p[4] else "", size=10, color=COLORS['text_muted']), ft.Text(f"📅 {p[6][:10]}" if p[6] else "", size=10, color=COLORS['text_muted']), ft.IconButton(icon=ft.icons.DELETE, icon_size=18, icon_color=COLORS['danger'], on_click=lambda _, pid=p[0]: self.delete_phrase(pid))], spacing=10)
+                    ft.Row([ft.Text(f"🏷️ {p[4]}" if p[4] else "", size=10, color=COLORS['text_muted']), ft.Text(f"📅 {p[6][:10]}" if p[6] else "", size=10, color=COLORS['text_muted']), ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, icon_color=COLORS['danger'], on_click=lambda _, pid=p[0]: self.delete_phrase(pid))], spacing=10)
                 ], spacing=5), bgcolor=COLORS['card'], border_radius=10, padding=12)
                 self.phrases_container.controls.append(card)
         self.page.update()
@@ -766,7 +766,7 @@ class IDELingoApp:
     def show_community(self):
         self.page.clean()
         self.current_index = 5
-        sf = ft.TextField(hint_text="Enter username...", prefix_icon=ft.icons.SEARCH, width=250, height=45, border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'])
+        sf = ft.TextField(hint_text="Enter username...", prefix_icon=ft.Icons.SEARCH, width=250, height=45, border_color=COLORS['text_muted'], focused_border_color=COLORS['accent'], color=COLORS['text'])
         res = ft.Column(spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
         def search(e):
             res.controls.clear()
