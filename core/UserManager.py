@@ -4,6 +4,7 @@ from GrammarEnhancer import GrammarEnhancer
 from OfflineDictionary import OfflineDictionary
 from AdvancedGrammarChecker import AdvancedGrammarChecker
 from PlanManager import PlanManager
+from CloudSync import CloudSync
 import hashlib
 import secrets
 from datetime import datetime, timedelta
@@ -17,6 +18,7 @@ class UserManager:
             self.offline_dict = OfflineDictionary()
             self.grammar_checker = AdvancedGrammarChecker()
             self.plan_manager = PlanManager(self.db)
+            self.cloud = CloudSync()
             self.current_user = None
             print("🎉 UserManager loaded")
         except Exception as e:
@@ -40,41 +42,51 @@ class UserManager:
         try:
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             pwd_hash = self.hash_password(password)
+            sync_token = secrets.token_hex(16)
             self.db.execute_query(
-                'INSERT INTO users (username, email, password_hash, created_at, last_active) VALUES (?, ?, ?, ?, ?)',
-                (username, email, pwd_hash, now, now), commit=True)
+                'INSERT INTO users (username, email, password_hash, created_at, last_active, cloud_sync_token) VALUES (?, ?, ?, ?, ?, ?)',
+                (username, email, pwd_hash, now, now, sync_token), commit=True)
             user_id = self.db.execute_query('SELECT last_insert_rowid()', fetchone=True)[0]
             self.db.execute_query('INSERT INTO privacy_settings (user_id, profile_public) VALUES (?, 1)', (user_id,), commit=True)
+            # Publish public leaderboard fields (best-effort — ignored if offline)
+            self.cloud.upsert_profile(username, sync_token, '😊', 1, 0, 0, 0)
             return True, "Registration successful!"
         except Exception as e:
-            return False, str(e)
+            if "UNIQUE constraint failed: users.username" in str(e):
+                return False, "This username is already taken."
+            if "UNIQUE constraint failed: users.email" in str(e):
+                return False, "This email is already registered."
+            print(f"Register error: {e}")
+            return False, "Something went wrong. Please try again."
 
     def login(self, username, password):
         try:
             row = self.db.execute_query(
-                'SELECT id, username, email, password_hash, avatar, plan, daily_goal, current_streak, xp_total, level FROM users WHERE username = ? OR email = ?',
+                'SELECT id, username, email, password_hash, avatar, plan, daily_goal, current_streak, xp_total, level, cloud_sync_token FROM users WHERE username = ? OR email = ?',
                 (username, username), fetchone=True)
             if not row:
-                return False, "User not found", None
+                return False, "Incorrect username/email or password.", None
             if not self.verify_password(password, row[3]):
-                return False, "Wrong password", None
+                return False, "Incorrect username/email or password.", None
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.db.execute_query("UPDATE users SET last_active = ? WHERE id = ?", (now, row[0]), commit=True)
             user = {
                 'id': row[0], 'username': row[1], 'email': row[2],
                 'avatar': row[4] or '😊', 'plan': row[5] or 'free',
                 'daily_goal': row[6] or 10, 'current_streak': row[7] or 0,
-                'xp_total': row[8] or 0, 'level': row[9] or 1
+                'xp_total': row[8] or 0, 'level': row[9] or 1,
+                'cloud_sync_token': row[10]
             }
             self.current_user = user
             return True, "Welcome back!", user
         except Exception as e:
-            return False, str(e), None
+            print(f"Login error: {e}")
+            return False, "Something went wrong. Please try again.", None
 
     def login_by_id(self, user_id):
         try:
             row = self.db.execute_query(
-                'SELECT id, username, email, password_hash, avatar, plan, daily_goal, current_streak, xp_total, level FROM users WHERE id = ?',
+                'SELECT id, username, email, password_hash, avatar, plan, daily_goal, current_streak, xp_total, level, cloud_sync_token FROM users WHERE id = ?',
                 (user_id,), fetchone=True)
             if not row:
                 return False
@@ -84,7 +96,8 @@ class UserManager:
                 'id': row[0], 'username': row[1], 'email': row[2],
                 'avatar': row[4] or '😊', 'plan': row[5] or 'free',
                 'daily_goal': row[6] or 10, 'current_streak': row[7] or 0,
-                'xp_total': row[8] or 0, 'level': row[9] or 1
+                'xp_total': row[8] or 0, 'level': row[9] or 1,
+                'cloud_sync_token': row[10]
             }
             return True
         except Exception as e:
@@ -93,6 +106,23 @@ class UserManager:
 
     def add_xp(self, user_id, amount):
         pass  # XP removed
+
+    def _sync_to_cloud(self, user_id):
+        """Push public leaderboard fields to Supabase, if the user opted in."""
+        if not self.current_user or self.current_user['id'] != user_id:
+            return
+        privacy = self.get_privacy_settings(user_id)
+        if not privacy['profile_public']:
+            return
+        token = self.current_user.get('cloud_sync_token')
+        if not token:
+            return
+        progress = self.get_daily_progress(user_id)
+        self.cloud.upsert_profile(
+            self.current_user['username'], token, self.current_user['avatar'],
+            self.current_user['level'], self.current_user['xp_total'],
+            self.current_user['current_streak'], progress['words_learned']
+        )
 
     def get_daily_progress(self, user_id):
         today = datetime.now().strftime("%Y-%m-%d")
@@ -110,12 +140,16 @@ class UserManager:
                VALUES (?,?,?,?,?) ON CONFLICT(user_id,date) DO UPDATE SET
                words_learned = words_learned + ?, grammar_learned = grammar_learned + ?, minutes_studied = minutes_studied + ?''',
             (user_id, today, words_added, grammar_added, minutes, words_added, grammar_added, minutes), commit=True)
+        self._sync_to_cloud(user_id)
         return True
 
     def update_profile(self, user_id, **kwargs):
         for key, value in kwargs.items():
             if key in ['avatar', 'daily_goal']:
                 self.db.execute_query(f"UPDATE users SET {key}=? WHERE id=?", (value, user_id), commit=True)
+        if 'avatar' in kwargs and self.current_user and self.current_user['id'] == user_id:
+            self.current_user['avatar'] = kwargs['avatar']
+            self._sync_to_cloud(user_id)
 
     def add_vocabulary(self, user_id, word, meaning, example, language, difficulty, tags, notes):
         today = datetime.now().strftime("%Y-%m-%d")
@@ -235,36 +269,24 @@ class UserManager:
         return self.plan_manager.get_plan_progress(user_id, today_stats)
 
     def get_leaderboard(self, limit=10):
-        today = datetime.now().strftime("%Y-%m-%d")
-        return self.db.execute_query(
-            '''SELECT u.username, u.avatar, u.level, COALESCE(dp.words_learned,0) as score
-               FROM users u LEFT JOIN daily_progress dp ON u.id=dp.user_id AND dp.date=?
-               ORDER BY score DESC, u.level DESC LIMIT ?''',
-            (today, limit), fetchall=True)
+        """Cross-device leaderboard, backed by Supabase. Returns [] if offline."""
+        rows = self.cloud.get_leaderboard(limit)
+        return [(r['username'], r['avatar'], r['level'], r['today_words']) for r in rows]
 
     def search_users(self, query, current_user_id):
-        return self.db.execute_query(
-            'SELECT id, username, avatar, level, xp_total FROM users WHERE username LIKE ? AND id != ? LIMIT 20',
-            (f"%{query}%", current_user_id), fetchall=True)
+        """Cross-device username search, backed by Supabase. Returns [] if offline."""
+        exclude = self.current_user['username'] if self.current_user else ""
+        rows = self.cloud.search_profiles(query, exclude)
+        return [(r['username'], r['username'], r['avatar'], r['level'], r['xp_total']) for r in rows]
 
-    def get_user_public_profile(self, target_id):
-        row = self.db.execute_query(
-            '''SELECT u.username, u.avatar, u.level, u.xp_total, u.current_streak, COALESCE(p.profile_public,1) as is_public
-               FROM users u LEFT JOIN privacy_settings p ON u.id=p.user_id WHERE u.id=?''',
-            (target_id,), fetchone=True)
-        if not row:
-            return None, "User not found"
-        if not row[5]:
-            return None, "This user's profile is private"
-        today = datetime.now().strftime("%Y-%m-%d")
-        progress = self.db.execute_query(
-            'SELECT words_learned, goal_achieved FROM daily_progress WHERE user_id=? AND date=?',
-            (target_id, today), fetchone=True)
+    def get_user_public_profile(self, target_username):
+        profile = self.cloud.get_profile(target_username)
+        if profile is None:
+            return None, "User not found, is offline-only, or has a private profile"
         return {
-            'username': row[0], 'avatar': row[1], 'level': row[2],
-            'xp': row[3], 'streak': row[4],
-            'today_words': progress[0] if progress else 0,
-            'goal_achieved': progress[1] if progress else False
+            'username': profile['username'], 'avatar': profile['avatar'],
+            'level': profile['level'], 'streak': profile['current_streak'],
+            'today_words': profile['today_words']
         }, None
 
     def get_privacy_settings(self, user_id):
@@ -273,6 +295,12 @@ class UserManager:
 
     def update_privacy(self, user_id, profile_public):
         self.db.execute_query("UPDATE privacy_settings SET profile_public=? WHERE user_id=?", (profile_public, user_id), commit=True)
+        if self.current_user and self.current_user['id'] == user_id:
+            token = self.current_user.get('cloud_sync_token')
+            if profile_public:
+                self._sync_to_cloud(user_id)
+            elif token:
+                self.cloud.remove_profile(self.current_user['username'], token)
 
     def close(self):
         self.db.close()
