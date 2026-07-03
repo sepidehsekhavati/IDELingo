@@ -17,12 +17,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
-
       - name: Install Flet
         run: |
           pip install --upgrade pip
@@ -30,9 +24,11 @@ jobs:
 
       - name: Build APK
         run: |
-          # Permissions are now controlled entirely by pyproject.toml
-          # ([tool.flet.android.permission]) — no manual AndroidManifest.xml needed
-          flet build apk
+          # --yes answers "install Flutter/JDK/Android SDK?" prompts automatically,
+          # since GitHub Actions has no interactive terminal (stdin).
+          # Permissions are controlled entirely by pyproject.toml — no manual
+          # AndroidManifest.xml and no manually-installed Flutter needed.
+          flet build apk --yes -v
 
       - name: List build files
         run: |
