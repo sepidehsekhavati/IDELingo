@@ -24,11 +24,11 @@ jobs:
 
       - name: Build APK
         run: |
-          # --yes answers "install Flutter/JDK/Android SDK?" prompts automatically,
-          # since GitHub Actions has no interactive terminal (stdin).
-          # Permissions are controlled entirely by pyproject.toml — no manual
-          # AndroidManifest.xml and no manually-installed Flutter needed.
-          flet build apk --yes -v
+          # No Flutter is pre-installed, so flet build will download and
+          # install the exact version it needs automatically (no prompt,
+          # since there's no conflicting version already in PATH).
+          # Permissions are controlled entirely by pyproject.toml.
+          flet build apk -v
 
       - name: List build files
         run: |
