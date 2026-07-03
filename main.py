@@ -810,8 +810,7 @@ class IDELingoApp:
                 ft.Column([ft.Text("🔥 Streak", size=12), ft.Text(str(prof['streak']), size=18, weight=ft.FontWeight.BOLD, color=COLORS['warning'])], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
             ]),
             ft.Divider(),
-            ft.Text(f"📚 Today: {prof['today_words']} words", size=13),
-            ft.Text("✅ Goal achieved!" if prof['goal_achieved'] else "⏳ Goal in progress", size=13, color=COLORS['success'] if prof['goal_achieved'] else COLORS['warning'])
+            ft.Text(f"📚 Today: {prof['today_words']} words", size=13)
         ], spacing=10), padding=20, width=350), actions=[ft.TextButton("Close", on_click=lambda e: self._close_dialog(dlg))])
         self.page.dialog = dlg
         dlg.open = True
